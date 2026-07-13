@@ -1,12 +1,3 @@
-İstediğin gibi kısmi ödeme/tahsilat desteğini de içeren ve faturadaki abone numarası özelliğini koruyan **tüm uygulamanın güncel kodunun tamamını** aşağıda hazırladım.
-
-Bu yeni sürümde borç veya alacağın yanındaki yeşil butona bastığında sistem sana önce **"Ne kadar ödemek/tahsil etmek istiyorsunuz?"** diye soracak. Varsayılan olarak borcun tamamı yazılı gelir; istersen miktarı azaltıp kısmi ödeme yapabilirsin. Borç azaldıkça listede güncel kalan tutarıyla görünmeye devam eder, tamamen bittiğinde ise otomatik olarak "Kapatıldı" konumuna geçer.
-
-### 🛠️ Yapılması Gereken Tek Şey:
-
-Aşağıdaki kodun tamamını kopyala, **270. satır civarındaki `const SCRIPT_URL = "..."` alanına kendi Google Sheets linkini tekrar yapıştır** ve `index.html` olarak GitHub'a yükle.
-
-```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -719,5 +710,3 @@ Aşağıdaki kodun tamamını kopyala, **270. satır civarındaki `const SCRIPT_
 
 </body>
 </html>
-
-```

@@ -11,6 +11,7 @@
             --danger: #dc2626;
             --warning: #ea580c;
             --info: #06b6d4;
+            --transfer: #6366f1;
             --background: #f1f5f9;
             --surface: #ffffff;
             --text: #1e293b;
@@ -237,6 +238,7 @@
         .account-item { background: #f8fafc; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid var(--primary); }
         .transaction-item.income { border-left: 4px solid var(--success); }
         .transaction-item.expense { border-left: 4px solid var(--danger); }
+        .transaction-item.transfer { border-left: 4px solid var(--transfer); }
         .debt-item.debt { border-left: 4px solid #64748b; }
         .debt-item.debt.paid { border-left: 4px solid #cbd5e1; opacity: 0.6; }
         .debt-item.receivable { border-left: 4px solid var(--warning); }
@@ -311,19 +313,23 @@
 
         <!-- SEKME 2: GELİR / GİDER -->
         <div id="tab-transactions" class="tab-content">
-            <h3>Gelir / Gider Girişi</h3>
+            <h3>Gelir / Gider / Transfer Girişi</h3>
             <form id="transaction-form">
                 <div class="flex-group">
-                    <input type="text" id="t-desc" placeholder="Açıklama veya Kategori (örn: Market, Kira, Maaş)" required>
+                    <input type="text" id="t-desc" placeholder="Açıklama veya Kategori (örn: Market, Kira, Virman)" required>
                     <input type="text" id="t-amount" class="calc-input" placeholder="Tutar veya İşlem" required>
                 </div>
                 <div class="flex-group">
-                    <select id="t-type">
+                    <select id="t-type" onchange="handleTransactionTypeChange()">
                         <option value="income">Gelir (+)</option>
                         <option value="expense">Gider (-)</option>
+                        <option value="transfer">Hesaplar Arası Transfer (Virman) 🔄</option>
                     </select>
                     <select id="t-account" required>
                         <option value="">Hesap Seçin...</option>
+                    </select>
+                    <select id="t-target-account" style="display:none;">
+                        <option value="">Alıcı Hesap Seçin...</option>
                     </select>
                     <input type="date" id="t-date" required>
                 </div>
@@ -420,21 +426,15 @@
 </div>
 
 <script>
-    // 🔴 KOPYALADIĞIN GOOGLE APPS SCRIPT LINKINI BURAYA YAPIŞTIR!
+    // 🔗 Google Apps Script Web Uygulaması Bağlantınız Tam Olarak Entegre Edildi.
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
     let data = { accounts: [], transactions: [], debts: [], invoices: [], forecasts: [] };
     let isOverviewHidden = JSON.parse(localStorage.getItem('overview_hidden')) || false;
 
-    // Sayfa açıldığında işlem tarihi alanına otomatik bugünün tarihini koy
     document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 
-    // Buluttan Veri Çekme Fonksiyonu
     async function loadFromCloud() {
-        if(SCRIPT_URL.includes("SENİN_KOPYALADIĞIN")) {
-            document.getElementById('sync-text').innerHTML = "⚠️ Lütfen önce kod içindeki SCRIPT_URL alanını güncelleyin.";
-            return;
-        }
         document.getElementById('sync-text').innerHTML = "⏳ Veriler buluttan indiriliyor...";
         try {
             const response = await fetch(SCRIPT_URL, {
@@ -447,8 +447,8 @@
                 data.debts = data.debts || [];
                 data.invoices = data.invoices || [];
                 data.transactions = data.transactions || [];
+                data.forecasts = data.forecasts || [];
                 
-                // Eski işlemler için tarih kontrolü (Eğer eski veride tarih yoksa bugünü ata)
                 data.transactions.forEach(t => {
                     if(!t.date) t.date = new Date().toISOString().split('T')[0];
                 });
@@ -463,9 +463,7 @@
         updateUI(false); 
     }
 
-    // Buluta Veri Gönderme Fonksiyonu
     async function saveToCloud() {
-        if(SCRIPT_URL.includes("SENİN_KOPYALADIĞIN")) return;
         document.getElementById('sync-text').innerHTML = "⏳ Değişiklikler buluta kaydediliyor...";
         try {
             const response = await fetch(SCRIPT_URL, {
@@ -543,31 +541,52 @@
         });
     });
 
+    function handleTransactionTypeChange() {
+        const type = document.getElementById('t-type').value;
+        const targetSelect = document.getElementById('t-target-account');
+        const sourceSelect = document.getElementById('t-account');
+        
+        if(type === 'transfer') {
+            targetSelect.style.display = 'block';
+            targetSelect.required = true;
+            sourceSelect.options[0].text = "Gönderen Hesap Seçin...";
+        } else {
+            targetSelect.style.display = 'none';
+            targetSelect.required = false;
+            sourceSelect.options[0].text = "Hesap Seçin...";
+        }
+    }
+
     function updateAccountSelect() {
         const select = document.getElementById('t-account');
+        const targetSelect = document.getElementById('t-target-account');
         const filterAccSelect = document.getElementById('f-filter-account');
         
         const currentFilterVal = filterAccSelect.value;
+        const currentSourceVal = select.value;
+        const currentTargetVal = targetSelect.value;
         
-        select.innerHTML = '<option value="">Hesap Seçin...</option>';
+        const type = document.getElementById('t-type').value;
+        select.innerHTML = `<option value="">${type === 'transfer' ? 'Gönderen Hesap Seçin...' : 'Hesap Seçin...'}</option>`;
+        targetSelect.innerHTML = '<option value="">Alıcı Hesap Seçin...</option>';
         filterAccSelect.innerHTML = '<option value="">Tüm Hesaplar</option>';
         
         data.accounts.forEach((acc, index) => {
-            select.innerHTML += `<option value="${index}">${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)</option>`;
+            const optText = `${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)`;
+            select.innerHTML += `<option value="${index}">${optText}</option>`;
+            targetSelect.innerHTML += `<option value="${index}">${optText}</option>`;
             filterAccSelect.innerHTML += `<option value="${acc.name}">${acc.name}</option>`;
         });
         
         filterAccSelect.value = currentFilterVal;
+        select.value = currentSourceVal;
+        targetSelect.value = currentTargetVal;
     }
 
     function onTimeFilterChange() {
         const timeVal = document.getElementById('f-filter-time').value;
         const customInputs = document.getElementById('custom-date-inputs');
-        if(timeVal === 'custom') {
-            customInputs.style.display = 'flex';
-        } else {
-            customInputs.style.display = 'none';
-        }
+        customInputs.style.display = (timeVal === 'custom') ? 'flex' : 'none';
         filterTransactions();
     }
 
@@ -585,23 +604,23 @@
         let filteredExpense = 0;
 
         const now = new Date();
-        
-        // Tarih sınırlarını bulma yardımcıları
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
         const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
         data.transactions.forEach((t, index) => {
             const tDate = new Date(t.date);
             
-            // 1. Hesap Filtresi
-            if(accFilter && t.accName !== accFilter) return;
+            if(accFilter) {
+                if(t.type === 'transfer') {
+                    if(t.accName !== accFilter && t.targetAccName !== accFilter) return;
+                } else {
+                    if(t.accName !== accFilter) return;
+                }
+            }
 
-            // 2. Metin Arama Filtresi (Market, kira vb.)
             if(searchFilter && !t.desc.toLowerCase().includes(searchFilter)) return;
 
-            // 3. Zaman Filtresi
             if(timeFilter === 'today' && tDate < startOfToday) return;
             if(timeFilter === 'week' && tDate < startOfWeek) return;
             if(timeFilter === 'month' && tDate < startOfMonth) return;
@@ -610,18 +629,22 @@
                 if(endDateVal && tDate > new Date(endDateVal + 'T23:59:59')) return;
             }
 
-            // Filtreleri geçen işlemlerin hesaplaması
-            if(t.type === 'income') filteredIncome += t.amount; else filteredExpense += t.amount;
+            if(t.type === 'income') filteredIncome += t.amount; 
+            else if(t.type === 'expense') filteredExpense += t.amount;
 
-            // Arayüze Ekleme
+            let badgeText = `🏦 ${t.accName}`;
+            if(t.type === 'transfer') {
+                badgeText = `🔄 ${t.accName} ➡️ ${t.targetAccName}`;
+            }
+
             transactionList.innerHTML += `
                 <li class="transaction-item ${t.type}">
                     <div>
                         <strong>${t.desc}</strong> 
-                        <small style="display:block; color:#64748b;">🏦 ${t.accName} | 📅 ${t.date}</small>
+                        <small style="display:block; color:#64748b;">${badgeText} | 📅 ${t.date}</small>
                     </div>
                     <div>
-                        <span style="font-weight:bold;">${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)} TL</span>
+                        <span style="font-weight:bold;">${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${t.amount.toFixed(2)} TL</span>
                         <button class="btn-danger btn-sm" style="margin-left:10px;" onclick="deleteTransaction(${index})">&times;</button>
                     </div>
                 </li>`;
@@ -649,7 +672,6 @@
                 </li>`;
         });
 
-        // Genel harcama listesini filtre mekanizması üzerinden dolduruyoruz
         updateAccountSelect();
         filterTransactions();
 
@@ -709,9 +731,8 @@
             forecastBody.innerHTML += `<tr><td><strong>${f.desc}</strong></td><td>${f.type === 'income' ? 'Gelir' : 'Gider'}</td><td>${f.amount.toFixed(2)} TL</td><td>${actualAmount.toFixed(2)} TL</td><td>${statusText}</td><td><button class="btn-danger btn-sm" onclick="deleteForecast(${index})">&times;</button></td></tr>`;
         });
 
-        // Üst paneldeki Statik (Tüm Zamanlar) özetleri hesaplama
         let totalIncome = 0, totalExpense = 0;
-        data.transactions.forEach(t => { if(t.type === 'income') totalIncome += t.amount; else totalExpense += t.amount; });
+        data.transactions.forEach(t => { if(t.type === 'income') totalIncome += t.amount; else if(t.type === 'expense') totalExpense += t.amount; });
 
         document.getElementById('grand-total').setAttribute('data-val', grandTotal);
         document.getElementById('total-income').setAttribute('data-val', totalIncome);
@@ -723,7 +744,6 @@
         debtBalEl.parentElement.style.color = debtBalance >= 0 ? "var(--success)" : "var(--danger)";
 
         renderOverviewBalances();
-        
         if(shouldSaveToCloud) { saveToCloud(); }
     }
 
@@ -739,21 +759,41 @@
         e.preventDefault();
         const amount = calculateInput(document.getElementById('t-amount').value);
         const type = document.getElementById('t-type').value;
-        const accIndex = document.getElementById('t-account').value;
+        const sourceIndex = document.getElementById('t-account').value;
+        const targetIndex = document.getElementById('t-target-account').value;
         const date = document.getElementById('t-date').value;
-        if(amount <= 0 || !accIndex) return;
         
-        data.accounts[accIndex].balance += type === 'income' ? amount : -amount;
-        data.transactions.unshift({ 
-            desc: document.getElementById('t-desc').value, 
-            amount, 
-            type, 
-            accName: data.accounts[accIndex].name,
-            date: date
-        });
+        if(amount <= 0 || !sourceIndex) return;
+
+        if(type === 'transfer') {
+            if(!targetIndex) { alert("Lütfen alıcı hesabı seçin!"); return; }
+            if(sourceIndex === targetIndex) { alert("Gönderen ve alıcı hesap aynı olamaz!"); return; }
+            
+            data.accounts[sourceIndex].balance -= amount;
+            data.accounts[targetIndex].balance += amount;
+            
+            data.transactions.unshift({
+                desc: document.getElementById('t-desc').value || "Hesaplar Arası Transfer",
+                amount,
+                type,
+                accName: data.accounts[sourceIndex].name,
+                targetAccName: data.accounts[targetIndex].name,
+                date: date
+            });
+        } else {
+            data.accounts[sourceIndex].balance += type === 'income' ? amount : -amount;
+            data.transactions.unshift({ 
+                desc: document.getElementById('t-desc').value, 
+                amount, 
+                type, 
+                accName: data.accounts[sourceIndex].name,
+                date: date
+            });
+        }
         
         document.getElementById('transaction-form').reset();
         document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+        handleTransactionTypeChange(); 
         updateUI(true);
     });
 
@@ -804,7 +844,6 @@
 
     window.payDebt = function(index) {
         const debt = data.debts[index];
-        
         let amountStr = prompt(`${debt.person} adlı kişiye ait kalan tutar: ${debt.amount.toFixed(2)} TL\nÖdemek/Tahsil etmek istediğiniz tutarı girin:`, debt.amount.toFixed(2));
         if (amountStr === null) return; 
         
@@ -831,12 +870,7 @@
             }
             
             debt.amount -= payAmount;
-            
-            if (debt.amount <= 0.01) {
-                debt.amount = 0;
-                debt.paid = true;
-            }
-            
+            if (debt.amount <= 0.01) { debt.amount = 0; debt.paid = true; }
             updateUI(true);
         }
     }
@@ -847,13 +881,19 @@
     window.deleteInvoice = function(index) { data.invoices.splice(index, 1); updateUI(true); }
     window.deleteTransaction = function(index) {
         const t = data.transactions[index];
-        const targetAcc = data.accounts.find(acc => acc.name === t.accName);
-        if(targetAcc) targetAcc.balance += t.type === 'income' ? -t.amount : t.amount;
+        if (t.type === 'transfer') {
+            const srcAcc = data.accounts.find(acc => acc.name === t.accName);
+            const tgtAcc = data.accounts.find(acc => acc.name === t.targetAccName);
+            if(srcAcc) srcAcc.balance += t.amount;
+            if(tgtAcc) tgtAcc.balance -= t.amount;
+        } else {
+            const targetAcc = data.accounts.find(acc => acc.name === t.accName);
+            if(targetAcc) targetAcc.balance += t.type === 'income' ? -t.amount : t.amount;
+        }
         data.transactions.splice(index, 1);
         updateUI(true);
     }
 
-    // İlk açılışta buluttan verileri otomatik çek
     loadFromCloud();
 </script>
 

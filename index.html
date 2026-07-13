@@ -256,13 +256,11 @@
 
 <div class="main-container">
     
-    <!-- BULUT SENKRONİZASYON DURUMU -->
     <div class="cloud-status">
         <div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div>
         <button onclick="loadFromCloud()" class="btn-sm btn-eye" style="margin:0; padding:6px 12px;">Buluttan Güncelle ☁️</button>
     </div>
     
-    <!-- ÜST ALAN: GENEL ÖZET KARTLARI -->
     <div class="box">
         <div class="collapsible-header" onclick="toggleOverviewPanel()">
             <h2>📊 Genel Finansal Durum</h2>
@@ -285,7 +283,6 @@
         </div>
     </div>
 
-    <!-- SEKMELER -->
     <div class="tab-menu">
         <button class="tab-btn active" onclick="openTab('tab-accounts')">🏦 Hesaplarım</button>
         <button class="tab-btn" onclick="openTab('tab-transactions')">💸 Gelir / Gider Ekle</button>
@@ -294,10 +291,8 @@
         <button class="tab-btn" onclick="openTab('tab-debts')">🤝 Borç & Alacak</button>
     </div>
 
-    <!-- İÇERİK KUTUSU -->
     <div class="box">
         
-        <!-- SEKME 1: HESAPLAR -->
         <div id="tab-accounts" class="tab-content active">
             <h3>Hesap Yönetimi</h3>
             <form id="account-form">
@@ -311,7 +306,6 @@
             <ul id="account-list"></ul>
         </div>
 
-        <!-- SEKME 2: GELİR / GİDER -->
         <div id="tab-transactions" class="tab-content">
             <h3>Gelir / Gider / Transfer Girişi</h3>
             <form id="transaction-form">
@@ -336,7 +330,6 @@
                 <button type="submit" class="submit-btn">İşlemi Kaydet</button>
             </form>
             
-            <!-- GELİŞMİŞ FİLTRELEME VE ANALİZ PANELİ -->
             <h3>🔍 İşlem Hareketleri ve Harcama Analizi</h3>
             <div class="filter-panel">
                 <div class="filter-grid">
@@ -365,7 +358,6 @@
             <ul id="transaction-list"></ul>
         </div>
 
-        <!-- SEKME 3: TAHMİNİ GELİR / GİDER PLANLAMA -->
         <div id="tab-forecast" class="tab-content">
             <h3>Bütçe Planlama (Tahminler vs Gerçekleşenler)</h3>
             <form id="forecast-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
@@ -393,7 +385,6 @@
             </table>
         </div>
 
-        <!-- SEKME 4: FATURALAR -->
         <div id="tab-invoices" class="tab-content">
             <h3>Fatura Takibi</h3>
             <form id="invoice-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
@@ -406,7 +397,6 @@
             <ul id="invoice-list"></ul>
         </div>
 
-        <!-- SEKME 5: BORÇ / ALACAK -->
         <div id="tab-debts" class="tab-content">
             <h3>Borç & Alacak Yönetimi</h3>
             <form id="debt-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
@@ -426,7 +416,6 @@
 </div>
 
 <script>
-    // 🔗 Google Apps Script Web Uygulaması Bağlantınız Tam Olarak Entegre Edildi.
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
     let data = { accounts: [], transactions: [], debts: [], invoices: [], forecasts: [] };
@@ -524,9 +513,11 @@
         if (event && event.currentTarget) event.currentTarget.classList.add('active');
     }
 
+    // 🛠️ TÜRKÇE VİRGÜL (,) VE MATEMATİKSEL İŞLEM AYARI GÜNCELLENDİ
     function calculateInput(inputStr) {
         try {
-            const sanitized = inputStr.replace(/[^0-9+\-*/().]/g, '');
+            let normalized = inputStr.replace(/,/g, '.'); // Virgülleri noktaya çevirir
+            const sanitized = normalized.replace(/[^0-9+\-*/().-]/g, ''); // Eksi işaretine izin verir
             if(!sanitized) return 0;
             return parseFloat(new Function(`return ${sanitized}`)()) || 0;
         } catch (e) { return 0; }
@@ -534,9 +525,10 @@
 
     document.querySelectorAll('.calc-input').forEach(input => {
         input.addEventListener('blur', function() {
-            if(/[\+\-\*\/]/.test(this.value)) {
+            let normalized = this.value.replace(/,/g, '.');
+            if(/[\+\-\*\/]/.test(normalized) || normalized.includes('.')) {
                 const res = calculateInput(this.value);
-                if(res > 0) this.value = res.toFixed(2);
+                this.value = res.toFixed(2);
             }
         });
     });

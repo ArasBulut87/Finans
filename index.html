@@ -1,3 +1,12 @@
+İstediğin gibi kısmi ödeme/tahsilat desteğini de içeren ve faturadaki abone numarası özelliğini koruyan **tüm uygulamanın güncel kodunun tamamını** aşağıda hazırladım.
+
+Bu yeni sürümde borç veya alacağın yanındaki yeşil butona bastığında sistem sana önce **"Ne kadar ödemek/tahsil etmek istiyorsunuz?"** diye soracak. Varsayılan olarak borcun tamamı yazılı gelir; istersen miktarı azaltıp kısmi ödeme yapabilirsin. Borç azaldıkça listede güncel kalan tutarıyla görünmeye devam eder, tamamen bittiğinde ise otomatik olarak "Kapatıldı" konumuna geçer.
+
+### 🛠️ Yapılması Gereken Tek Şey:
+
+Aşağıdaki kodun tamamını kopyala, **270. satır civarındaki `const SCRIPT_URL = "..."` alanına kendi Google Sheets linkini tekrar yapıştır** ve `index.html` olarak GitHub'a yükle.
+
+```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -210,13 +219,16 @@
         .transaction-item.income { border-left: 4px solid var(--success); }
         .transaction-item.expense { border-left: 4px solid var(--danger); }
         .debt-item.debt { border-left: 4px solid #64748b; }
+        .debt-item.debt.paid { border-left: 4px solid #cbd5e1; opacity: 0.6; }
         .debt-item.receivable { border-left: 4px solid var(--warning); }
+        .debt-item.receivable.paid { border-left: 4px solid #cbd5e1; opacity: 0.6; }
         .invoice-item { border-left: 4px solid var(--info); }
         .invoice-item.paid { border-left: 4px solid #cbd5e1; opacity: 0.6; }
 
         .flex-group { display: flex; gap: 10px; }
         .flex-group input, .flex-group select { flex: 1; }
         .actions { display: flex; gap: 5px; align-items: center; }
+        .sub-info { font-size: 0.8rem; color: #64748b; display: block; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -333,9 +345,10 @@
         <div id="tab-invoices" class="tab-content">
             <h3>Fatura Takibi</h3>
             <form id="invoice-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
-                <input type="text" id="i-name" placeholder="Fatura Adı" style="flex: 2;" required>
+                <input type="text" id="i-name" placeholder="Fatura Adı (örn: Elektrik, İnternet)" style="flex: 2;" required>
                 <input type="text" id="i-amount" class="calc-input" placeholder="Tutar" style="flex: 1;" required>
-                <input type="date" id="i-date" style="flex: 1;" required>
+                <input type="text" id="i-subno" placeholder="Abone No (İsteğe Bağlı)" style="flex: 1.5;">
+                <input type="date" id="i-date" style="flex: 1.2;" required>
                 <button type="submit" class="submit-btn" style="flex: 1;">Fatura Ekle</button>
             </form>
             <ul id="invoice-list"></ul>
@@ -382,6 +395,8 @@
             const result = await response.json();
             if (result.status === "success" && result.payload) {
                 data = result.payload;
+                data.debts = data.debts || [];
+                data.invoices = data.invoices || [];
                 document.getElementById('sync-text').innerHTML = "✅ Bulut verileri başarıyla senkronize edildi.";
             } else {
                 document.getElementById('sync-text').innerHTML = "ℹ️ Bulutta veri bulunamadı. Yerel hafıza kullanılıyor.";
@@ -389,7 +404,7 @@
         } catch(e) {
             document.getElementById('sync-text').innerHTML = "❌ Buluta bağlanılamadı. Çevrim dışı mod aktif.";
         }
-        updateUI(false); // UI güncelle ama tekrar döngüye girmemesi için buluta yazma
+        updateUI(false); 
     }
 
     // Buluta Veri Gönderme Fonksiyonu
@@ -452,7 +467,7 @@
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
-        event.currentTarget.classList.add('active');
+        if (event && event.currentTarget) event.currentTarget.classList.add('active');
     }
 
     function calculateInput(inputStr) {
@@ -518,9 +533,13 @@
         let totalInvoiceToPay = 0;
         data.invoices.forEach((inv, index) => {
             if(!inv.paid) totalInvoiceToPay += inv.amount;
+            const subNoMarkup = inv.subNo ? `<span class="sub-info">🔢 Abone No: ${inv.subNo}</span>` : '';
             invoiceList.innerHTML += `
                 <li class="invoice-item ${inv.paid ? 'paid' : ''}">
-                    <div><strong>${inv.name}</strong> <small>(Son: ${inv.date})</small></div>
+                    <div>
+                        <strong>${inv.name}</strong> <small>(Son: ${inv.date})</small>
+                        ${subNoMarkup}
+                    </div>
                     <div class="actions">
                         <span style="font-weight:bold; margin-right:10px;">${inv.amount.toFixed(2)} TL</span>
                         ${inv.paid ? '<span style="color:var(--success); font-weight:bold;">Ödendi</span>' : `<button class="btn-success btn-sm" onclick="payInvoice(${index})">Öde</button>`}
@@ -533,13 +552,19 @@
         debtList.innerHTML = '';
         let debtBalance = 0;
         data.debts.forEach((d, index) => {
-            debtBalance += d.type === 'debt' ? -d.amount : d.amount;
+            if(!d.paid) {
+                debtBalance += d.type === 'debt' ? -d.amount : d.amount;
+            }
+            const typeText = d.type === 'debt' ? 'Borç' : 'Alacak';
+            const actionBtnText = d.type === 'debt' ? 'Öde' : 'Tahsil Et';
+            
             debtList.innerHTML += `
-                <li class="debt-item ${d.type}">
-                    <div><strong>${d.person}</strong> <small>(${d.type === 'debt' ? 'Borç' : 'Alacak'} | ${d.date || 'Vade Yok'})</small></div>
-                    <div>
-                        <span>${d.amount.toFixed(2)} TL</span>
-                        <button class="btn-danger btn-sm" style="margin-left:10px;" onclick="deleteDebt(${index})">&times;</button>
+                <li class="debt-item ${d.type} ${d.paid ? 'paid' : ''}">
+                    <div><strong>${d.person}</strong> <small>(${typeText} | ${d.date || 'Vade Yok'})</small></div>
+                    <div class="actions">
+                        <span style="font-weight:bold; margin-right:10px;">${d.amount.toFixed(2)} TL</span>
+                        ${d.paid ? '<span style="color:var(--success); font-weight:bold;">Kapatıldı</span>' : `<button class="btn-success btn-sm" onclick="payDebt(${index})">${actionBtnText}</button>`}
+                        <button class="btn-danger btn-sm" onclick="deleteDebt(${index})">&times;</button>
                     </div>
                 </li>`;
         });
@@ -603,14 +628,20 @@
 
     document.getElementById('invoice-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        data.invoices.unshift({ name: document.getElementById('i-name').value, amount: calculateInput(document.getElementById('i-amount').value), date: document.getElementById('i-date').value, paid: false });
+        data.invoices.unshift({ 
+            name: document.getElementById('i-name').value, 
+            amount: calculateInput(document.getElementById('i-amount').value), 
+            subNo: document.getElementById('i-subno').value, 
+            date: document.getElementById('i-date').value, 
+            paid: false 
+        });
         document.getElementById('invoice-form').reset();
         updateUI(true);
     });
 
     document.getElementById('debt-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        data.debts.unshift({ person: document.getElementById('d-person').value, amount: calculateInput(document.getElementById('d-amount').value), type: document.getElementById('d-type').value, date: document.getElementById('d-date').value });
+        data.debts.unshift({ person: document.getElementById('d-person').value, amount: calculateInput(document.getElementById('d-amount').value), type: document.getElementById('d-type').value, date: document.getElementById('d-date').value, paid: false });
         document.getElementById('debt-form').reset();
         updateUI(true);
     });
@@ -623,6 +654,49 @@
             data.accounts[chosen].balance -= inv.amount;
             data.transactions.unshift({ desc: `Fatura: ${inv.name}`, amount: inv.amount, type: 'expense', accName: data.accounts[chosen].name });
             inv.paid = true;
+            updateUI(true);
+        }
+    }
+
+    window.payDebt = function(index) {
+        const debt = data.debts[index];
+        
+        // 1. Kullanıcıdan ödenecek/tahsil edilecek tutarı al (Kısmi Ödeme Desteği)
+        let amountStr = prompt(`${debt.person} adlı kişiye ait kalan tutar: ${debt.amount.toFixed(2)} TL\nÖdemek/Tahsil etmek istediğiniz tutarı girin:`, debt.amount.toFixed(2));
+        if (amountStr === null) return; 
+        
+        let payAmount = parseFloat(amountStr);
+        if (isNaN(payAmount) || payAmount <= 0 || payAmount > debt.amount) {
+            alert("Geçersiz bakiye girdiniz veya kalan borçtan daha büyük bir tutar yazdınız.");
+            return;
+        }
+
+        // 2. Hesap seçimi yaptır
+        let options = data.accounts.map((acc, i) => `${i}: ${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)`).join('\n');
+        const promptText = debt.type === 'debt' 
+            ? `Borç ödemesinin düşüleceği hesap numarasını girin:\n${options}`
+            : `Tahsil edilen alacağın ekleneceği hesap numarasını girin:\n${options}`;
+            
+        let chosen = prompt(promptText);
+        if (chosen !== null && data.accounts[chosen]) {
+            // Hesap bakiyesini güncelle ve finans geçmişine ekle
+            if(debt.type === 'debt') {
+                data.accounts[chosen].balance -= payAmount;
+                data.transactions.unshift({ desc: `Borç Ödeme: ${debt.person}`, amount: payAmount, type: 'expense', accName: data.accounts[chosen].name });
+            } else {
+                data.accounts[chosen].balance += payAmount;
+                data.transactions.unshift({ desc: `Alacak Tahsilatı: ${debt.person}`, amount: payAmount, type: 'income', accName: data.accounts[chosen].name });
+            }
+            
+            // Kalan borç miktarını düşür
+            debt.amount -= payAmount;
+            
+            // Eğer borç tamamen bittiyse (0'a çok yaklaştıysa) kapatıldı olarak işaretle
+            if (debt.amount <= 0.01) {
+                debt.amount = 0;
+                debt.paid = true;
+            }
+            
             updateUI(true);
         }
     }
@@ -645,3 +719,5 @@
 
 </body>
 </html>
+
+```

@@ -220,6 +220,8 @@
         .btn-danger:hover { background: #b91c1c; }
         .btn-success { background: var(--success); color: white;}
         .btn-success:hover { background: #15803d; }
+        .btn-warning { background: var(--warning); color: white;}
+        .btn-warning:hover { background: #c2410c; }
         
         .btn-eye {
             background: #f1f5f9;
@@ -250,6 +252,39 @@
         .flex-group input, .flex-group select { flex: 1; }
         .actions { display: flex; gap: 5px; align-items: center; }
         .sub-info { font-size: 0.8rem; color: #64748b; display: block; margin-top: 2px; }
+        
+        .month-selector-wrapper {
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .month-selector-wrapper label { font-weight: bold; font-size: 0.9rem; }
+        
+        .kmh-badge {
+            background: #ffedd5;
+            color: #c2410c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-top: 3px;
+            display: inline-block;
+        }
+        
+        .usable-badge {
+            background: #dcfce7;
+            color: #15803d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-top: 3px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -296,12 +331,14 @@
         <div id="tab-accounts" class="tab-content active">
             <h3>Hesap Yönetimi</h3>
             <form id="account-form">
+                <input type="hidden" id="acc-edit-index" value="">
                 <div class="flex-group">
                     <input type="text" id="acc-name" placeholder="Hesap Adı (örn: A Bankası, Nakit)" required>
-                    <input type="text" id="acc-balance" class="calc-input" placeholder="Başlangıç Bakiyesi (örn: 5000+150)" required>
+                    <input type="text" id="acc-balance" class="calc-input" placeholder="Net Bakiye (örn: 5000)" required>
+                    <input type="text" id="acc-kmh" class="calc-input" placeholder="KMH Limiti (Varsayılan: 0)">
                 </div>
-                <span class="calc-hint">💡 İşlem yazabilirsiniz. (Örn: 4000*1.1)</span>
-                <button type="submit" class="submit-btn">Yeni Hesap Ekle</button>
+                <span class="calc-hint">💡 Bakiye ve KMH kısımlarında matematiksel işlem yapabilirsiniz. (Örn: 4000*1.1)</span>
+                <button type="submit" id="acc-submit-btn" class="submit-btn">Yeni Hesap Ekle</button>
             </form>
             <ul id="account-list"></ul>
         </div>
@@ -360,25 +397,40 @@
 
         <div id="tab-forecast" class="tab-content">
             <h3>Bütçe Planlama (Tahminler vs Gerçekleşenler)</h3>
-            <form id="forecast-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
-                <input type="text" id="f-desc" placeholder="Kategori/Açıklama (örn: Market, Kira)" style="flex:2;" required>
-                <input type="text" id="f-amount" class="calc-input" placeholder="Tahmini Tutar" style="flex:1;" required>
-                <select id="f-type" style="flex:1;">
-                    <option value="income">Beklenen Gelir (+)</option>
-                    <option value="expense">Beklenen Gider (-)</option>
-                </select>
-                <button type="submit" class="submit-btn" style="flex:0.5;">Ekle</button>
+            
+            <div class="month-selector-wrapper">
+                <label for="forecast-month-filter">📅 Planlama Yapılacak Dönem:</label>
+                <input type="month" id="forecast-month-filter" onchange="updateUI(false)">
+            </div>
+
+            <form id="forecast-form">
+                <input type="hidden" id="f-edit-index" value="">
+                <div class="flex-group">
+                    <input type="text" id="f-desc" placeholder="Kategori/Açıklama (örn: Market, Kira, Maaş)" required>
+                    <input type="text" id="f-amount" class="calc-input" placeholder="Tahmini Tutar" required>
+                </div>
+                <div class="flex-group" style="margin-top:10px;">
+                    <select id="f-type">
+                        <option value="expense">Beklenen Gider (-)</option>
+                        <option value="income">Beklenen Gelir (+)</option>
+                    </select>
+                    <select id="f-period">
+                        <option value="monthly">Aylık Plan</option>
+                        <option value="weekly">Haftalık Plan</option>
+                    </select>
+                    <button type="submit" id="f-submit-btn" class="submit-btn">Plan Ekle</button>
+                </div>
             </form>
             
             <table>
                 <thead>
                     <tr>
                         <th>Planlanan Kalem</th>
-                        <th>Tür</th>
+                        <th>Tür / Kapsam</th>
                         <th>Tahmin Edilen</th>
                         <th>Gerçekleşen Durum</th>
                         <th>Fark / Durum</th>
-                        <th>İşlem</th>
+                        <th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody id="forecast-table-body"></tbody>
@@ -421,7 +473,11 @@
     let data = { accounts: [], transactions: [], debts: [], invoices: [], forecasts: [] };
     let isOverviewHidden = JSON.parse(localStorage.getItem('overview_hidden')) || false;
 
-    document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    document.getElementById('t-date').value = now.toISOString().split('T')[0];
+    
+    const currentYearMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    document.getElementById('forecast-month-filter').value = currentYearMonth;
 
     async function loadFromCloud() {
         document.getElementById('sync-text').innerHTML = "⏳ Veriler buluttan indiriliyor...";
@@ -433,6 +489,7 @@
             const result = await response.json();
             if (result.status === "success" && result.payload) {
                 data = result.payload;
+                data.accounts = data.accounts || [];
                 data.debts = data.debts || [];
                 data.invoices = data.invoices || [];
                 data.transactions = data.transactions || [];
@@ -440,6 +497,11 @@
                 
                 data.transactions.forEach(t => {
                     if(!t.date) t.date = new Date().toISOString().split('T')[0];
+                });
+                
+                // KMH uyumluluğu kontrolü
+                data.accounts.forEach(acc => {
+                    if(acc.kmh === undefined) acc.kmh = 0;
                 });
                 
                 document.getElementById('sync-text').innerHTML = "✅ Bulut verileri başarıyla senkronize edildi.";
@@ -492,11 +554,12 @@
         const eyeIcon = document.getElementById('overview-eye-icon');
         const eyeText = document.getElementById('overview-eye-text');
 
-        eyeIcon.innerText = isOverviewHidden ? "🙈" : "👁️";
-        eyeText.innerText = isOverviewHidden ? "Bakiyeleri Göster" : "Bakiyeleri Gizle";
+        if(eyeIcon) eyeIcon.innerText = isOverviewHidden ? "🙈" : "👁️";
+        if(eyeText) eyeText.innerText = isOverviewHidden ? "Bakiyeleri Göster" : "Bakiyeleri Gizle";
 
         ids.forEach(id => {
             const el = document.getElementById(id);
+            if(!el) return;
             const val = parseFloat(el.getAttribute('data-val')) || 0;
             if (isOverviewHidden) {
                 el.innerText = "****** TL";
@@ -513,11 +576,11 @@
         if (event && event.currentTarget) event.currentTarget.classList.add('active');
     }
 
-    // 🛠️ TÜRKÇE VİRGÜL (,) VE MATEMATİKSEL İŞLEM AYARI GÜNCELLENDİ
     function calculateInput(inputStr) {
+        if (!inputStr) return 0;
         try {
-            let normalized = inputStr.replace(/,/g, '.'); // Virgülleri noktaya çevirir
-            const sanitized = normalized.replace(/[^0-9+\-*/().-]/g, ''); // Eksi işaretine izin verir
+            let normalized = String(inputStr).replace(/,/g, '.'); 
+            const sanitized = normalized.replace(/[^0-9+\-*/().-]/g, ''); 
             if(!sanitized) return 0;
             return parseFloat(new Function(`return ${sanitized}`)()) || 0;
         } catch (e) { return 0; }
@@ -595,10 +658,10 @@
         let filteredIncome = 0;
         let filteredExpense = 0;
 
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentNow = new Date();
+        const startOfToday = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate());
+        const startOfWeek = new Date(currentNow.getFullYear(), currentNow.getMonth(), currentNow.getDate() - currentNow.getDay() + (currentNow.getDay() === 0 ? -6 : 1));
+        const startOfMonth = new Date(currentNow.getFullYear(), currentNow.getMonth(), 1);
 
         data.transactions.forEach((t, index) => {
             const tDate = new Date(t.date);
@@ -653,12 +716,30 @@
 
         data.accounts.forEach((acc, index) => {
             grandTotal += acc.balance;
+            const kmhVal = acc.kmh || 0;
+            const usableBalance = acc.balance + kmhVal;
+
+            // KMH Badges oluşturma
+            const kmhBadgeHtml = kmhVal > 0 
+                ? `<span class="kmh-badge">KMH Limiti: ${kmhVal.toFixed(2)} TL</span>` 
+                : '';
+            
+            const usableBadgeHtml = kmhVal > 0 
+                ? `<span class="usable-badge">Kullanılabilir: ${usableBalance.toFixed(2)} TL</span>` 
+                : '';
+
             accountList.innerHTML += `
                 <li class="account-item">
-                    <div><strong>${acc.name}</strong></div>
+                    <div>
+                        <strong>${acc.name}</strong>
+                        <div style="margin-top: 4px;">
+                            ${kmhBadgeHtml} ${usableBadgeHtml}
+                        </div>
+                    </div>
                     <div class="actions">
                         <span>${acc.hidden ? "****** TL" : acc.balance.toFixed(2) + " TL"}</span>
                         <button class="btn-sm btn-eye" onclick="toggleAccountPrivacy(${index})">${acc.hidden ? "🙈" : "👁️"}</button>
+                        <button class="btn-warning btn-sm" onclick="editAccount(${index})">Düzenle ✏️</button>
                         <button class="btn-danger btn-sm" style="margin-left:5px;" onclick="deleteAccount(${index})">&times;</button>
                     </div>
                 </li>`;
@@ -708,19 +789,43 @@
                 </li>`;
         });
 
+        // --- BÜTÇE TAHMİNLERİ TABLOSU GÜNCELLEMESİ ---
+        const selectedMonth = document.getElementById('forecast-month-filter').value; 
         const forecastBody = document.getElementById('forecast-table-body');
         forecastBody.innerHTML = '';
+        
         data.forecasts.forEach((f, index) => {
+            if(!f.month) f.month = selectedMonth; 
+            if(f.month !== selectedMonth) return;
+
             let actualAmount = 0;
             data.transactions.forEach(t => {
-                if(t.type === f.type && t.desc.toLowerCase().includes(f.desc.toLowerCase().trim())) actualAmount += t.amount;
+                if(t.date && t.date.substring(0, 7) === selectedMonth) {
+                    if(t.type === f.type && t.desc.toLowerCase().includes(f.desc.toLowerCase().trim())) {
+                        actualAmount += t.amount;
+                    }
+                }
             });
+
             const diff = f.type === 'income' ? (actualAmount - f.amount) : (f.amount - actualAmount);
             let statusText = f.type === 'expense' 
                 ? (diff >= 0 ? `<span style="color:var(--success)">✅ Bütçe İçi (${diff.toFixed(2)} TL)</span>` : `<span style="color:var(--danger)">⚠️ Aşım (${Math.abs(diff).toFixed(2)} TL)</span>`)
                 : (diff >= 0 ? `<span style="color:var(--success)">🎉 Hedef Geçildi (+${diff.toFixed(2)})</span>` : `<span style="color:var(--warning)">⏳ Bekleniyor (-${Math.abs(diff).toFixed(2)})</span>`);
 
-            forecastBody.innerHTML += `<tr><td><strong>${f.desc}</strong></td><td>${f.type === 'income' ? 'Gelir' : 'Gider'}</td><td>${f.amount.toFixed(2)} TL</td><td>${actualAmount.toFixed(2)} TL</td><td>${statusText}</td><td><button class="btn-danger btn-sm" onclick="deleteForecast(${index})">&times;</button></td></tr>`;
+            const scopeText = f.period === 'weekly' ? 'Haftalık' : 'Aylık';
+
+            forecastBody.innerHTML += `
+                <tr>
+                    <td><strong>${f.desc}</strong></td>
+                    <td><small>${f.type === 'income' ? 'Gelir' : 'Gider'} (${scopeText})</small></td>
+                    <td>${f.amount.toFixed(2)} TL</td>
+                    <td>${actualAmount.toFixed(2)} TL</td>
+                    <td>${statusText}</td>
+                    <td>
+                        <button class="btn-warning btn-sm" onclick="editForecast(${index})">Düzenle ✏️</button>
+                        <button class="btn-danger btn-sm" onclick="deleteForecast(${index})">&times;</button>
+                    </td>
+                </tr>`;
         });
 
         let totalIncome = 0, totalExpense = 0;
@@ -739,13 +844,46 @@
         if(shouldSaveToCloud) { saveToCloud(); }
     }
 
-    // --- FORM ACTIONS ---
+    // --- HESAP EKLEME VE DOĞRUDAN DÜZENLEME ---
     document.getElementById('account-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        data.accounts.push({ name: document.getElementById('acc-name').value, balance: calculateInput(document.getElementById('acc-balance').value), hidden: false });
+        const editIndex = document.getElementById('acc-edit-index').value;
+        const accName = document.getElementById('acc-name').value;
+        const balance = calculateInput(document.getElementById('acc-balance').value);
+        const kmh = calculateInput(document.getElementById('acc-kmh').value);
+
+        if(editIndex !== "") {
+            // Doğrudan Bakiye / Hesap Düzenleme Modu
+            data.accounts[editIndex].name = accName;
+            data.accounts[editIndex].balance = balance;
+            data.accounts[editIndex].kmh = kmh;
+            
+            document.getElementById('acc-edit-index').value = "";
+            document.getElementById('acc-submit-btn').innerText = "Yeni Hesap Ekle";
+            document.getElementById('acc-submit-btn').style.background = "var(--primary)";
+        } else {
+            // Yeni Hesap Ekleme Modu
+            data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: false });
+        }
+        
         document.getElementById('account-form').reset();
         updateUI(true);
     });
+
+    // Hesap Düzenleme Fonksiyonu
+    window.editAccount = function(index) {
+        const acc = data.accounts[index];
+        document.getElementById('acc-name').value = acc.name;
+        document.getElementById('acc-balance').value = acc.balance.toFixed(2);
+        document.getElementById('acc-kmh').value = (acc.kmh || 0).toFixed(2);
+        document.getElementById('acc-edit-index').value = index;
+        
+        const btn = document.getElementById('acc-submit-btn');
+        btn.innerText = "Hesabı Güncelle 💾";
+        btn.style.background = "var(--success)";
+        
+        document.getElementById('account-form').scrollIntoView({ behavior: 'smooth' });
+    }
 
     document.getElementById('transaction-form').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -789,12 +927,47 @@
         updateUI(true);
     });
 
+    // --- BÜTÇE TAHMİNİ EKLEME VE DÜZENLEME ---
     document.getElementById('forecast-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        data.forecasts.push({ desc: document.getElementById('f-desc').value, amount: calculateInput(document.getElementById('f-amount').value), type: document.getElementById('f-type').value });
+        const editIndex = document.getElementById('f-edit-index').value;
+        const selectedMonth = document.getElementById('forecast-month-filter').value;
+
+        const newForecast = {
+            desc: document.getElementById('f-desc').value,
+            amount: calculateInput(document.getElementById('f-amount').value),
+            type: document.getElementById('f-type').value,
+            period: document.getElementById('f-period').value,
+            month: selectedMonth
+        };
+
+        if(editIndex !== "") {
+            data.forecasts[editIndex] = newForecast;
+            document.getElementById('f-edit-index').value = "";
+            document.getElementById('f-submit-btn').innerText = "Plan Ekle";
+            document.getElementById('f-submit-btn').style.background = "var(--primary)";
+        } else {
+            data.forecasts.push(newForecast);
+        }
+
         document.getElementById('forecast-form').reset();
         updateUI(true);
     });
+
+    window.editForecast = function(index) {
+        const f = data.forecasts[index];
+        document.getElementById('f-desc').value = f.desc;
+        document.getElementById('f-amount').value = f.amount.toFixed(2);
+        document.getElementById('f-type').value = f.type;
+        document.getElementById('f-period').value = f.period || 'monthly';
+        document.getElementById('f-edit-index').value = index;
+        
+        const btn = document.getElementById('f-submit-btn');
+        btn.innerText = "Değişiklikleri Kaydet 💾";
+        btn.style.background = "var(--success)";
+        
+        document.getElementById('forecast-form').scrollIntoView({ behavior: 'smooth' });
+    }
 
     document.getElementById('invoice-form').addEventListener('submit', (e) => {
         e.preventDefault();

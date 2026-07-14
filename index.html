@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Çevrim içi Kişisel Finans, Borç ve Bütçe Planlama</title>
+    <title>Kişisel Finans, Borç ve Gelişmiş Bütçe Yönetimi</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -26,7 +26,7 @@
         }
 
         .main-container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
@@ -106,7 +106,7 @@
 
         .hide-toggle-btn:hover { background: #e2e8f0; }
 
-        h3 { margin-top: 0; color: #0f172a; }
+        h3 { margin-top: 0; color: #0f172a; margin-bottom: 15px;}
 
         .summary-grid {
             display: grid;
@@ -285,6 +285,47 @@
             margin-top: 3px;
             display: inline-block;
         }
+
+        /* Kategori Yönetim Stilleri */
+        .category-manager {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .category-list-wrapper {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .category-card {
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        .category-card h4 {
+            margin: 0 0 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 6px;
+        }
+        .subcategory-tag {
+            background: #f1f5f9;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 2px;
+        }
+        .subcategory-tag span { cursor: pointer; color: var(--danger); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -346,16 +387,25 @@
         <div id="tab-transactions" class="tab-content">
             <h3>Gelir / Gider / Transfer Girişi</h3>
             <form id="transaction-form">
+                <input type="hidden" id="t-edit-index" value="">
                 <div class="flex-group">
-                    <input type="text" id="t-desc" placeholder="Açıklama veya Kategori (örn: Market, Kira, Virman)" required>
+                    <input type="text" id="t-desc" placeholder="Açıklama (örn: Haftalık Market Alışverişi, Kira vb.)" required>
                     <input type="text" id="t-amount" class="calc-input" placeholder="Tutar veya İşlem" required>
                 </div>
                 <div class="flex-group">
-                    <select id="t-type" onchange="handleTransactionTypeChange()">
-                        <option value="income">Gelir (+)</option>
+                    <select id="t-type" onchange="onTransactionTypeOrCategoryChange()">
                         <option value="expense">Gider (-)</option>
+                        <option value="income">Gelir (+)</option>
                         <option value="transfer">Hesaplar Arası Transfer (Virman) 🔄</option>
                     </select>
+                    <select id="t-category" onchange="onParentCategoryChange()" required>
+                        <option value="">Ana Kategori Seçin...</option>
+                    </select>
+                    <select id="t-subcategory">
+                        <option value="">Alt Kategori Seçin...</option>
+                    </select>
+                </div>
+                <div class="flex-group">
                     <select id="t-account" required>
                         <option value="">Hesap Seçin...</option>
                     </select>
@@ -364,7 +414,7 @@
                     </select>
                     <input type="date" id="t-date" required>
                 </div>
-                <button type="submit" class="submit-btn">İşlemi Kaydet</button>
+                <button type="submit" id="t-submit-btn" class="submit-btn">İşlemi Kaydet</button>
             </form>
             
             <h3>🔍 İşlem Hareketleri ve Harcama Analizi</h3>
@@ -380,7 +430,7 @@
                         <option value="month">Bu Ay</option>
                         <option value="custom">Özel Tarih Aralığı...</option>
                     </select>
-                    <input type="text" id="f-filter-search" placeholder="Açıklama ara (örn: market)..." oninput="filterTransactions()">
+                    <input type="text" id="f-filter-search" placeholder="Açıklama ara..." oninput="filterTransactions()">
                 </div>
                 <div class="flex-group" id="custom-date-inputs" style="display:none;">
                     <input type="date" id="f-start-date" onchange="filterTransactions()">
@@ -393,6 +443,37 @@
             </div>
             
             <ul id="transaction-list"></ul>
+
+            <div class="category-manager">
+                <div class="collapsible-header" onclick="document.getElementById('cat-mgr-content').classList.toggle('open')">
+                    <h3>🏷️ Kategori ve Alt Kategori Yönetimi</h3>
+                    <span class="toggle-icon">▼ Yönet</span>
+                </div>
+                <div id="cat-mgr-content" class="collapsible-content">
+                    <form id="category-add-form" style="background:#fff; margin-top: 10px;" onsubmit="addNewCategory(event)">
+                        <div class="flex-group">
+                            <input type="text" id="new-cat-name" placeholder="Yeni Ana Kategori Adı (örn: Eğlence)" required>
+                            <select id="new-cat-type">
+                                <option value="expense">Gider Kategorisi</option>
+                                <option value="income">Gelir Kategorisi</option>
+                            </select>
+                            <button type="submit" class="submit-btn" style="padding: 0 15px;">Kategori Ekle</button>
+                        </div>
+                    </form>
+
+                    <form id="subcategory-add-form" style="background:#fff;" onsubmit="addNewSubcategory(event)">
+                        <div class="flex-group">
+                            <select id="sub-parent-select" required>
+                                <option value="">Alt Kategori Eklenecek Ana Kategori Seçin...</option>
+                            </select>
+                            <input type="text" id="new-sub-name" placeholder="Yeni Alt Kategori Adı (örn: Sinema)" required>
+                            <button type="submit" class="submit-btn" style="padding: 0 15px;">Alt Kategori Ekle</button>
+                        </div>
+                    </form>
+
+                    <div class="category-list-wrapper" id="category-list-container"></div>
+                </div>
+            </div>
         </div>
 
         <div id="tab-forecast" class="tab-content">
@@ -440,11 +521,12 @@
         <div id="tab-invoices" class="tab-content">
             <h3>Fatura Takibi</h3>
             <form id="invoice-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
-                <input type="text" id="i-name" placeholder="Fatura Adı (örn: Elektrik, İnternet)" style="flex: 2;" required>
-                <input type="text" id="i-amount" class="calc-input" placeholder="Tutar" style="flex: 1;" required>
-                <input type="text" id="i-subno" placeholder="Abone No (İsteğe Bağlı)" style="flex: 1.5;">
-                <input type="date" id="i-date" style="flex: 1.2;" required>
-                <button type="submit" class="submit-btn" style="flex: 1;">Fatura Ekle</button>
+                <input type="text" id="i-name" placeholder="Fatura Adı (örn: Elektrik, İnternet)" style="flex: 1.5;" required>
+                <input type="text" id="i-amount" class="calc-input" placeholder="Tutar" style="flex: 0.8;" required>
+                <input type="text" id="i-subno" placeholder="Abone No (İsteğe Bağlı)" style="flex: 1;">
+                <input type="text" id="i-notes" placeholder="Not (örn: otomatik ödemede, her ayın 15'i)" style="flex: 1.5;">
+                <input type="date" id="i-date" style="flex: 1;" required>
+                <button type="submit" class="submit-btn" style="flex: 0.8;">Fatura Ekle</button>
             </form>
             <ul id="invoice-list"></ul>
         </div>
@@ -470,7 +552,31 @@
 <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
-    let data = { accounts: [], transactions: [], debts: [], invoices: [], forecasts: [] };
+    // Dinamik Kategori Yapısı
+    let defaultCategories = {
+        expense: [
+            { id: "cat-fatura", name: "Fatura", subcategories: ["Telefon", "İnternet", "Elektrik", "Su", "Doğalgaz"] },
+            { id: "cat-market", name: "Market", subcategories: ["Gıda", "Temizlik", "Kişisel Bakım"] },
+            { id: "cat-yemek", name: "Yemek", subcategories: ["Dışarıda Yemek", "Kahve", "Sipariş"] },
+            { id: "cat-eglence", name: "Eğlence", subcategories: ["Sinema/Tiyatro", "Konser", "Abonelikler (Netflix vb.)"] },
+            { id: "cat-ulasim", name: "Ulaşım", subcategories: ["Akaryakıt", "Toplu Taşıma", "Taksi"] }
+        ],
+        income: [
+            { id: "cat-maas", name: "Maaş", subcategories: ["Ana Maaş", "Prim/Ek Gelir"] },
+            { id: "cat-yatirim", name: "Yatırım", subcategories: ["Borsa", "Faiz", "Kripto Geri Dönüşü"] },
+            { id: "cat-diger", name: "Diğer", subcategories: ["Satış", "Hediye"] }
+        ]
+    };
+
+    let data = { 
+        accounts: [], 
+        transactions: [], 
+        debts: [], 
+        invoices: [], 
+        forecasts: [],
+        categories: defaultCategories 
+    };
+    
     let isOverviewHidden = JSON.parse(localStorage.getItem('overview_hidden')) || false;
 
     const now = new Date();
@@ -494,12 +600,12 @@
                 data.invoices = data.invoices || [];
                 data.transactions = data.transactions || [];
                 data.forecasts = data.forecasts || [];
+                data.categories = data.categories || defaultCategories;
                 
                 data.transactions.forEach(t => {
                     if(!t.date) t.date = new Date().toISOString().split('T')[0];
                 });
                 
-                // KMH uyumluluğu kontrolü
                 data.accounts.forEach(acc => {
                     if(acc.kmh === undefined) acc.kmh = 0;
                 });
@@ -596,22 +702,146 @@
         });
     });
 
-    function handleTransactionTypeChange() {
+    // --- KATEGORİ SEÇİM VE YÖNETİM FONKSİYONLARI ---
+    function onTransactionTypeOrCategoryChange() {
         const type = document.getElementById('t-type').value;
+        const catSelect = document.getElementById('t-category');
+        const subcatSelect = document.getElementById('t-subcategory');
         const targetSelect = document.getElementById('t-target-account');
         const sourceSelect = document.getElementById('t-account');
-        
-        if(type === 'transfer') {
+
+        if (type === 'transfer') {
+            catSelect.style.display = 'none';
+            subcatSelect.style.display = 'none';
+            catSelect.required = false;
             targetSelect.style.display = 'block';
             targetSelect.required = true;
             sourceSelect.options[0].text = "Gönderen Hesap Seçin...";
         } else {
+            catSelect.style.display = 'block';
+            subcatSelect.style.display = 'block';
+            catSelect.required = true;
             targetSelect.style.display = 'none';
             targetSelect.required = false;
             sourceSelect.options[0].text = "Hesap Seçin...";
+            
+            // Ana kategorileri yükle
+            const currentSelected = catSelect.value;
+            catSelect.innerHTML = '<option value="">Ana Kategori Seçin...</option>';
+            const cats = data.categories[type] || [];
+            cats.forEach(c => {
+                catSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+            catSelect.value = currentSelected;
+            onParentCategoryChange();
         }
     }
 
+    function onParentCategoryChange() {
+        const type = document.getElementById('t-type').value;
+        const parentId = document.getElementById('t-category').value;
+        const subcatSelect = document.getElementById('t-subcategory');
+
+        subcatSelect.innerHTML = '<option value="">Alt Kategori Seçin...</option>';
+        if (!parentId || type === 'transfer') return;
+
+        const cats = data.categories[type] || [];
+        const selectedCat = cats.find(c => c.id === parentId);
+        if (selectedCat && selectedCat.subcategories) {
+            selectedCat.subcategories.forEach(sub => {
+                subcatSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+            });
+        }
+    }
+
+    function renderCategoryManagementUI() {
+        const container = document.getElementById('category-list-container');
+        const parentSelect = document.getElementById('sub-parent-select');
+        
+        container.innerHTML = '';
+        parentSelect.innerHTML = '<option value="">Alt Kategori Eklenecek Ana Kategori Seçin...</option>';
+
+        ['expense', 'income'].forEach(type => {
+            const list = data.categories[type] || [];
+            list.forEach(c => {
+                parentSelect.innerHTML += `<option value="${type}:${c.id}">${c.name} (${type === 'expense' ? 'Gider' : 'Gelir'})</option>`;
+
+                let subsHtml = '';
+                if(c.subcategories && c.subcategories.length > 0) {
+                    c.subcategories.forEach((sub, subIdx) => {
+                        subsHtml += `
+                            <span class="subcategory-tag">
+                                ${sub} <span onclick="deleteSubcategory('${type}', '${c.id}', ${subIdx})">&times;</span>
+                            </span>`;
+                    });
+                } else {
+                    subsHtml = '<em style="color:#94a3b8; font-size:0.8rem; display:block; margin-top:5px;">Alt kategori eklenmedi.</em>';
+                }
+
+                container.innerHTML += `
+                    <div class="category-card">
+                        <h4>
+                            <span style="color: ${type === 'income' ? 'var(--success)' : 'var(--danger)'}">
+                                ${type === 'income' ? '📈' : '📉'} ${c.name}
+                            </span>
+                            <button class="btn-danger btn-sm" onclick="deleteParentCategory('${type}', '${c.id}')">&times; Sil</button>
+                        </h4>
+                        <div>${subsHtml}</div>
+                    </div>`;
+            });
+        });
+    }
+
+    function addNewCategory(event) {
+        event.preventDefault();
+        const name = document.getElementById('new-cat-name').value.trim();
+        const type = document.getElementById('new-cat-type').value;
+        if(!name) return;
+
+        const id = 'cat-' + Date.now();
+        data.categories[type] = data.categories[type] || [];
+        data.categories[type].push({ id: id, name: name, subcategories: [] });
+
+        document.getElementById('new-cat-name').value = '';
+        updateUI(true);
+    }
+
+    function addNewSubcategory(event) {
+        event.preventDefault();
+        const parentCombined = document.getElementById('sub-parent-select').value;
+        const subName = document.getElementById('new-sub-name').value.trim();
+        if(!parentCombined || !subName) return;
+
+        const [type, parentId] = parentCombined.split(':');
+        const parentCat = data.categories[type].find(c => c.id === parentId);
+        
+        if (parentCat) {
+            parentCat.subcategories = parentCat.subcategories || [];
+            if(!parentCat.subcategories.includes(subName)) {
+                parentCat.subcategories.push(subName);
+            }
+        }
+
+        document.getElementById('new-sub-name').value = '';
+        updateUI(true);
+    }
+
+    window.deleteParentCategory = function(type, id) {
+        if(confirm("Bu ana kategoriyi ve bağlı tüm alt kategorileri silmek istediğinize emin misiniz?")) {
+            data.categories[type] = data.categories[type].filter(c => c.id !== id);
+            updateUI(true);
+        }
+    }
+
+    window.deleteSubcategory = function(type, parentId, subIdx) {
+        const parentCat = data.categories[type].find(c => c.id === parentId);
+        if (parentCat && parentCat.subcategories) {
+            parentCat.subcategories.splice(subIdx, 1);
+            updateUI(true);
+        }
+    }
+
+    // --- DIĞER BILEŞENLERIN SEÇIM GÜNCELLEMELERI ---
     function updateAccountSelect() {
         const select = document.getElementById('t-account');
         const targetSelect = document.getElementById('t-target-account');
@@ -692,15 +922,25 @@
                 badgeText = `🔄 ${t.accName} ➡️ ${t.targetAccName}`;
             }
 
+            // Kategori Bilgisini Göster
+            let categoryText = '';
+            if(t.categoryName) {
+                categoryText = ` | 🏷️ ${t.categoryName}`;
+                if(t.subcategoryName) {
+                    categoryText += ` (${t.subcategoryName})`;
+                }
+            }
+
             transactionList.innerHTML += `
                 <li class="transaction-item ${t.type}">
                     <div>
                         <strong>${t.desc}</strong> 
-                        <small style="display:block; color:#64748b;">${badgeText} | 📅 ${t.date}</small>
+                        <small style="display:block; color:#64748b;">${badgeText}${categoryText} | 📅 ${t.date}</small>
                     </div>
-                    <div>
-                        <span style="font-weight:bold;">${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${t.amount.toFixed(2)} TL</span>
-                        <button class="btn-danger btn-sm" style="margin-left:10px;" onclick="deleteTransaction(${index})">&times;</button>
+                    <div class="actions">
+                        <span style="font-weight:bold; margin-right: 10px;">${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${t.amount.toFixed(2)} TL</span>
+                        <button class="btn-warning btn-sm" onclick="editTransaction(${index})">Düzenle ✏️</button>
+                        <button class="btn-danger btn-sm" onclick="deleteTransaction(${index}, true)">&times;</button>
                     </div>
                 </li>`;
         });
@@ -719,7 +959,6 @@
             const kmhVal = acc.kmh || 0;
             const usableBalance = acc.balance + kmhVal;
 
-            // KMH Badges oluşturma
             const kmhBadgeHtml = kmhVal > 0 
                 ? `<span class="kmh-badge">KMH Limiti: ${kmhVal.toFixed(2)} TL</span>` 
                 : '';
@@ -745,20 +984,27 @@
                 </li>`;
         });
 
+        // Kategori Yönetimi ve Seçimleri Güncelle
+        renderCategoryManagementUI();
+        onTransactionTypeOrCategoryChange();
         updateAccountSelect();
         filterTransactions();
 
+        // Fatura Listesi (Not Defteri ile Birlikte)
         const invoiceList = document.getElementById('invoice-list');
         invoiceList.innerHTML = '';
         let totalInvoiceToPay = 0;
         data.invoices.forEach((inv, index) => {
             if(!inv.paid) totalInvoiceToPay += inv.amount;
             const subNoMarkup = inv.subNo ? `<span class="sub-info">🔢 Abone No: ${inv.subNo}</span>` : '';
+            const notesMarkup = inv.notes ? `<span class="sub-info" style="color:var(--primary); font-weight:500;">📝 Not: ${inv.notes}</span>` : '';
+            
             invoiceList.innerHTML += `
                 <li class="invoice-item ${inv.paid ? 'paid' : ''}">
                     <div>
-                        <strong>${inv.name}</strong> <small>(Son: ${inv.date})</small>
+                        <strong>${inv.name}</strong> <small>(Son Ödeme: ${inv.date})</small>
                         ${subNoMarkup}
+                        ${notesMarkup}
                     </div>
                     <div class="actions">
                         <span style="font-weight:bold; margin-right:10px;">${inv.amount.toFixed(2)} TL</span>
@@ -789,7 +1035,7 @@
                 </li>`;
         });
 
-        // --- BÜTÇE TAHMİNLERİ TABLOSU GÜNCELLEMESİ ---
+        // Bütçe Planlama Tablosu
         const selectedMonth = document.getElementById('forecast-month-filter').value; 
         const forecastBody = document.getElementById('forecast-table-body');
         forecastBody.innerHTML = '';
@@ -801,8 +1047,15 @@
             let actualAmount = 0;
             data.transactions.forEach(t => {
                 if(t.date && t.date.substring(0, 7) === selectedMonth) {
-                    if(t.type === f.type && t.desc.toLowerCase().includes(f.desc.toLowerCase().trim())) {
-                        actualAmount += t.amount;
+                    if(t.type === f.type) {
+                        const searchLower = f.desc.toLowerCase().trim();
+                        const matchesDesc = t.desc.toLowerCase().includes(searchLower);
+                        const matchesCat = t.categoryName && t.categoryName.toLowerCase().includes(searchLower);
+                        const matchesSub = t.subcategoryName && t.subcategoryName.toLowerCase().includes(searchLower);
+                        
+                        if(matchesDesc || matchesCat || matchesSub) {
+                            actualAmount += t.amount;
+                        }
                     }
                 }
             });
@@ -833,234 +1086,3 @@
 
         document.getElementById('grand-total').setAttribute('data-val', grandTotal);
         document.getElementById('total-income').setAttribute('data-val', totalIncome);
-        document.getElementById('total-expense').setAttribute('data-val', totalExpense);
-        document.getElementById('total-invoice').setAttribute('data-val', totalInvoiceToPay);
-        
-        const debtBalEl = document.getElementById('total-debt-bal');
-        debtBalEl.setAttribute('data-val', debtBalance);
-        debtBalEl.parentElement.style.color = debtBalance >= 0 ? "var(--success)" : "var(--danger)";
-
-        renderOverviewBalances();
-        if(shouldSaveToCloud) { saveToCloud(); }
-    }
-
-    // --- HESAP EKLEME VE DOĞRUDAN DÜZENLEME ---
-    document.getElementById('account-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const editIndex = document.getElementById('acc-edit-index').value;
-        const accName = document.getElementById('acc-name').value;
-        const balance = calculateInput(document.getElementById('acc-balance').value);
-        const kmh = calculateInput(document.getElementById('acc-kmh').value);
-
-        if(editIndex !== "") {
-            // Doğrudan Bakiye / Hesap Düzenleme Modu
-            data.accounts[editIndex].name = accName;
-            data.accounts[editIndex].balance = balance;
-            data.accounts[editIndex].kmh = kmh;
-            
-            document.getElementById('acc-edit-index').value = "";
-            document.getElementById('acc-submit-btn').innerText = "Yeni Hesap Ekle";
-            document.getElementById('acc-submit-btn').style.background = "var(--primary)";
-        } else {
-            // Yeni Hesap Ekleme Modu
-            data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: false });
-        }
-        
-        document.getElementById('account-form').reset();
-        updateUI(true);
-    });
-
-    // Hesap Düzenleme Fonksiyonu
-    window.editAccount = function(index) {
-        const acc = data.accounts[index];
-        document.getElementById('acc-name').value = acc.name;
-        document.getElementById('acc-balance').value = acc.balance.toFixed(2);
-        document.getElementById('acc-kmh').value = (acc.kmh || 0).toFixed(2);
-        document.getElementById('acc-edit-index').value = index;
-        
-        const btn = document.getElementById('acc-submit-btn');
-        btn.innerText = "Hesabı Güncelle 💾";
-        btn.style.background = "var(--success)";
-        
-        document.getElementById('account-form').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    document.getElementById('transaction-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const amount = calculateInput(document.getElementById('t-amount').value);
-        const type = document.getElementById('t-type').value;
-        const sourceIndex = document.getElementById('t-account').value;
-        const targetIndex = document.getElementById('t-target-account').value;
-        const date = document.getElementById('t-date').value;
-        
-        if(amount <= 0 || !sourceIndex) return;
-
-        if(type === 'transfer') {
-            if(!targetIndex) { alert("Lütfen alıcı hesabı seçin!"); return; }
-            if(sourceIndex === targetIndex) { alert("Gönderen ve alıcı hesap aynı olamaz!"); return; }
-            
-            data.accounts[sourceIndex].balance -= amount;
-            data.accounts[targetIndex].balance += amount;
-            
-            data.transactions.unshift({
-                desc: document.getElementById('t-desc').value || "Hesaplar Arası Transfer",
-                amount,
-                type,
-                accName: data.accounts[sourceIndex].name,
-                targetAccName: data.accounts[targetIndex].name,
-                date: date
-            });
-        } else {
-            data.accounts[sourceIndex].balance += type === 'income' ? amount : -amount;
-            data.transactions.unshift({ 
-                desc: document.getElementById('t-desc').value, 
-                amount, 
-                type, 
-                accName: data.accounts[sourceIndex].name,
-                date: date
-            });
-        }
-        
-        document.getElementById('transaction-form').reset();
-        document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
-        handleTransactionTypeChange(); 
-        updateUI(true);
-    });
-
-    // --- BÜTÇE TAHMİNİ EKLEME VE DÜZENLEME ---
-    document.getElementById('forecast-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const editIndex = document.getElementById('f-edit-index').value;
-        const selectedMonth = document.getElementById('forecast-month-filter').value;
-
-        const newForecast = {
-            desc: document.getElementById('f-desc').value,
-            amount: calculateInput(document.getElementById('f-amount').value),
-            type: document.getElementById('f-type').value,
-            period: document.getElementById('f-period').value,
-            month: selectedMonth
-        };
-
-        if(editIndex !== "") {
-            data.forecasts[editIndex] = newForecast;
-            document.getElementById('f-edit-index').value = "";
-            document.getElementById('f-submit-btn').innerText = "Plan Ekle";
-            document.getElementById('f-submit-btn').style.background = "var(--primary)";
-        } else {
-            data.forecasts.push(newForecast);
-        }
-
-        document.getElementById('forecast-form').reset();
-        updateUI(true);
-    });
-
-    window.editForecast = function(index) {
-        const f = data.forecasts[index];
-        document.getElementById('f-desc').value = f.desc;
-        document.getElementById('f-amount').value = f.amount.toFixed(2);
-        document.getElementById('f-type').value = f.type;
-        document.getElementById('f-period').value = f.period || 'monthly';
-        document.getElementById('f-edit-index').value = index;
-        
-        const btn = document.getElementById('f-submit-btn');
-        btn.innerText = "Değişiklikleri Kaydet 💾";
-        btn.style.background = "var(--success)";
-        
-        document.getElementById('forecast-form').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    document.getElementById('invoice-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        data.invoices.unshift({ 
-            name: document.getElementById('i-name').value, 
-            amount: calculateInput(document.getElementById('i-amount').value), 
-            subNo: document.getElementById('i-subno').value, 
-            date: document.getElementById('i-date').value, 
-            paid: false 
-        });
-        document.getElementById('invoice-form').reset();
-        updateUI(true);
-    });
-
-    document.getElementById('debt-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        data.debts.unshift({ person: document.getElementById('d-person').value, amount: calculateInput(document.getElementById('d-amount').value), type: document.getElementById('d-type').value, date: document.getElementById('d-date').value, paid: false });
-        document.getElementById('debt-form').reset();
-        updateUI(true);
-    });
-
-    window.payInvoice = function(index) {
-        const inv = data.invoices[index];
-        let options = data.accounts.map((acc, i) => `${i}: ${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)`).join('\n');
-        let chosen = prompt(`Ödeme yapılacak hesap numarasını girin:\n${options}`);
-        if (chosen !== null && data.accounts[chosen]) {
-            data.accounts[chosen].balance -= inv.amount;
-            data.transactions.unshift({ 
-                desc: `Fatura: ${inv.name}`, 
-                amount: inv.amount, 
-                type: 'expense', 
-                accName: data.accounts[chosen].name,
-                date: new Date().toISOString().split('T')[0]
-            });
-            inv.paid = true;
-            updateUI(true);
-        }
-    }
-
-    window.payDebt = function(index) {
-        const debt = data.debts[index];
-        let amountStr = prompt(`${debt.person} adlı kişiye ait kalan tutar: ${debt.amount.toFixed(2)} TL\nÖdemek/Tahsil etmek istediğiniz tutarı girin:`, debt.amount.toFixed(2));
-        if (amountStr === null) return; 
-        
-        let payAmount = parseFloat(amountStr);
-        if (isNaN(payAmount) || payAmount <= 0 || payAmount > debt.amount) {
-            alert("Geçersiz bakiye girdiniz veya kalan borçtan daha büyük bir tutar yazdınız.");
-            return;
-        }
-
-        let options = data.accounts.map((acc, i) => `${i}: ${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)`).join('\n');
-        const promptText = debt.type === 'debt' 
-            ? `Borç ödemesinin düşüleceği hesap numarasını girin:\n${options}`
-            : `Tahsil edilen alacağın ekleneceği hesap numarasını girin:\n${options}`;
-            
-        let chosen = prompt(promptText);
-        if (chosen !== null && data.accounts[chosen]) {
-            const todayStr = new Date().toISOString().split('T')[0];
-            if(debt.type === 'debt') {
-                data.accounts[chosen].balance -= payAmount;
-                data.transactions.unshift({ desc: `Borç Ödeme: ${debt.person}`, amount: payAmount, type: 'expense', accName: data.accounts[chosen].name, date: todayStr });
-            } else {
-                data.accounts[chosen].balance += payAmount;
-                data.transactions.unshift({ desc: `Alacak Tahsilatı: ${debt.person}`, amount: payAmount, type: 'income', accName: data.accounts[chosen].name, date: todayStr });
-            }
-            
-            debt.amount -= payAmount;
-            if (debt.amount <= 0.01) { debt.amount = 0; debt.paid = true; }
-            updateUI(true);
-        }
-    }
-
-    window.deleteAccount = function(index) { if(confirm("Hesabı silmek istiyor musunuz?")) { data.accounts.splice(index, 1); updateUI(true); } }
-    window.deleteForecast = function(index) { data.forecasts.splice(index, 1); updateUI(true); }
-    window.deleteDebt = function(index) { data.debts.splice(index, 1); updateUI(true); }
-    window.deleteInvoice = function(index) { data.invoices.splice(index, 1); updateUI(true); }
-    window.deleteTransaction = function(index) {
-        const t = data.transactions[index];
-        if (t.type === 'transfer') {
-            const srcAcc = data.accounts.find(acc => acc.name === t.accName);
-            const tgtAcc = data.accounts.find(acc => acc.name === t.targetAccName);
-            if(srcAcc) srcAcc.balance += t.amount;
-            if(tgtAcc) tgtAcc.balance -= t.amount;
-        } else {
-            const targetAcc = data.accounts.find(acc => acc.name === t.accName);
-            if(targetAcc) targetAcc.balance += t.type === 'income' ? -t.amount : t.amount;
-        }
-        data.transactions.splice(index, 1);
-        updateUI(true);
-    }
-
-    loadFromCloud();
-</script>
-
-</body>
-</html>

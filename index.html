@@ -1086,3 +1086,318 @@
 
         document.getElementById('grand-total').setAttribute('data-val', grandTotal);
         document.getElementById('total-income').setAttribute('data-val', totalIncome);
+        document.getElementById('total-expense').setAttribute('data-val', totalExpense);
+        document.getElementById('total-invoice').setAttribute('data-val', totalInvoiceToPay);
+        
+        const debtBalEl = document.getElementById('total-debt-bal');
+        debtBalEl.setAttribute('data-val', debtBalance);
+        debtBalEl.parentElement.style.color = debtBalance >= 0 ? "var(--success)" : "var(--danger)";
+
+        renderOverviewBalances();
+        if(shouldSaveToCloud) { saveToCloud(); }
+    }
+
+    // --- HESAP EKLEME / GÜNCELLEME ---
+    document.getElementById('account-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const editIndex = document.getElementById('acc-edit-index').value;
+        const accName = document.getElementById('acc-name').value;
+        const balance = calculateInput(document.getElementById('acc-balance').value);
+        const kmh = calculateInput(document.getElementById('acc-kmh').value);
+
+        if(editIndex !== "") {
+            data.accounts[editIndex].name = accName;
+            data.accounts[editIndex].balance = balance;
+            data.accounts[editIndex].kmh = kmh;
+            
+            document.getElementById('acc-edit-index').value = "";
+            document.getElementById('acc-submit-btn').innerText = "Yeni Hesap Ekle";
+            document.getElementById('acc-submit-btn').style.background = "var(--primary)";
+        } else {
+            data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: false });
+        }
+        
+        document.getElementById('account-form').reset();
+        updateUI(true);
+    });
+
+    window.editAccount = function(index) {
+        const acc = data.accounts[index];
+        document.getElementById('acc-name').value = acc.name;
+        document.getElementById('acc-balance').value = acc.balance.toFixed(2);
+        document.getElementById('acc-kmh').value = (acc.kmh || 0).toFixed(2);
+        document.getElementById('acc-edit-index').value = index;
+        
+        const btn = document.getElementById('acc-submit-btn');
+        btn.innerText = "Hesabı Güncelle 💾";
+        btn.style.background = "var(--success)";
+        
+        document.getElementById('account-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- GELİR / GİDER EKLEME VE DÜZENLEME ---
+    document.getElementById('transaction-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const editIndex = document.getElementById('t-edit-index').value;
+        const amount = calculateInput(document.getElementById('t-amount').value);
+        const type = document.getElementById('t-type').value;
+        const sourceIndex = document.getElementById('t-account').value;
+        const targetIndex = document.getElementById('t-target-account').value;
+        const date = document.getElementById('t-date').value;
+        
+        if(amount <= 0 || !sourceIndex) return;
+
+        // Kategorileri al
+        let categoryName = "";
+        let subcategoryName = "";
+        const catSelect = document.getElementById('t-category');
+        const subSelect = document.getElementById('t-subcategory');
+
+        if (type !== 'transfer' && catSelect.value) {
+            const list = data.categories[type] || [];
+            const catObj = list.find(c => c.id === catSelect.value);
+            if(catObj) {
+                categoryName = catObj.name;
+                subcategoryName = subSelect.value || "";
+            }
+        }
+
+        // Eğer güncelleme modundaysak, eski işlem miktarlarını geri çevir
+        if(editIndex !== "") {
+            deleteTransaction(parseInt(editIndex), false);
+        }
+
+        if(type === 'transfer') {
+            if(!targetIndex) { alert("Lütfen alıcı hesabı seçin!"); return; }
+            if(sourceIndex === targetIndex) { alert("Gönderen ve alıcı hesap aynı olamaz!"); return; }
+            
+            data.accounts[sourceIndex].balance -= amount;
+            data.accounts[targetIndex].balance += amount;
+            
+            const transObj = {
+                desc: document.getElementById('t-desc').value || "Hesaplar Arası Transfer",
+                amount,
+                type,
+                accName: data.accounts[sourceIndex].name,
+                targetAccName: data.accounts[targetIndex].name,
+                date: date
+            };
+
+            if (editIndex !== "") {
+                data.transactions.splice(parseInt(editIndex), 0, transObj);
+            } else {
+                data.transactions.unshift(transObj);
+            }
+        } else {
+            data.accounts[sourceIndex].balance += type === 'income' ? amount : -amount;
+            const transObj = { 
+                desc: document.getElementById('t-desc').value, 
+                amount, 
+                type, 
+                accName: data.accounts[sourceIndex].name,
+                categoryName,
+                subcategoryName,
+                date: date
+            };
+
+            if (editIndex !== "") {
+                data.transactions.splice(parseInt(editIndex), 0, transObj);
+            } else {
+                data.transactions.unshift(transObj);
+            }
+        }
+        
+        // Formu temizle
+        document.getElementById('t-edit-index').value = "";
+        document.getElementById('t-submit-btn').innerText = "İşlemi Kaydet";
+        document.getElementById('t-submit-btn').style.background = "var(--primary)";
+        
+        document.getElementById('transaction-form').reset();
+        document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+        onTransactionTypeOrCategoryChange(); 
+        updateUI(true);
+    });
+
+    window.editTransaction = function(index) {
+        const t = data.transactions[index];
+        document.getElementById('t-desc').value = t.desc;
+        document.getElementById('t-amount').value = t.amount.toFixed(2);
+        document.getElementById('t-type').value = t.type;
+        document.getElementById('t-date').value = t.date;
+        document.getElementById('t-edit-index').value = index;
+
+        onTransactionTypeOrCategoryChange();
+
+        // Kategori eşleşmelerini yükle
+        if (t.type !== 'transfer' && t.categoryName) {
+            const list = data.categories[t.type] || [];
+            const catObj = list.find(c => c.name === t.categoryName);
+            if(catObj) {
+                document.getElementById('t-category').value = catObj.id;
+                onParentCategoryChange();
+                if(t.subcategoryName) {
+                    document.getElementById('t-subcategory').value = t.subcategoryName;
+                }
+            }
+        }
+
+        // Hesapları eşleştir
+        const sourceAccIdx = data.accounts.findIndex(acc => acc.name === t.accName);
+        if(sourceAccIdx !== -1) document.getElementById('t-account').value = sourceAccIdx;
+
+        if (t.type === 'transfer') {
+            const targetAccIdx = data.accounts.findIndex(acc => acc.name === t.targetAccName);
+            if(targetAccIdx !== -1) document.getElementById('t-target-account').value = targetAccIdx;
+        }
+
+        const btn = document.getElementById('t-submit-btn');
+        btn.innerText = "Değişiklikleri Güncelle 💾";
+        btn.style.background = "var(--success)";
+
+        document.getElementById('transaction-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    window.deleteTransaction = function(index, shouldUpdateUI = true) {
+        const t = data.transactions[index];
+        if (t.type === 'transfer') {
+            const srcAcc = data.accounts.find(acc => acc.name === t.accName);
+            const tgtAcc = data.accounts.find(acc => acc.name === t.targetAccName);
+            if(srcAcc) srcAcc.balance += t.amount;
+            if(tgtAcc) tgtAcc.balance -= t.amount;
+        } else {
+            const targetAcc = data.accounts.find(acc => acc.name === t.accName);
+            if(targetAcc) targetAcc.balance += t.type === 'income' ? -t.amount : t.amount;
+        }
+        data.transactions.splice(index, 1);
+        if(shouldUpdateUI) updateUI(true);
+    }
+
+    // --- BÜTÇE TAHMİNİ EKLEME VE DÜZENLEME ---
+    document.getElementById('forecast-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const editIndex = document.getElementById('f-edit-index').value;
+        const selectedMonth = document.getElementById('forecast-month-filter').value;
+
+        const newForecast = {
+            desc: document.getElementById('f-desc').value,
+            amount: calculateInput(document.getElementById('f-amount').value),
+            type: document.getElementById('f-type').value,
+            period: document.getElementById('f-period').value,
+            month: selectedMonth
+        };
+
+        if(editIndex !== "") {
+            data.forecasts[editIndex] = newForecast;
+            document.getElementById('f-edit-index').value = "";
+            document.getElementById('f-submit-btn').innerText = "Plan Ekle";
+            document.getElementById('f-submit-btn').style.background = "var(--primary)";
+        } else {
+            data.forecasts.push(newForecast);
+        }
+
+        document.getElementById('forecast-form').reset();
+        updateUI(true);
+    });
+
+    window.editForecast = function(index) {
+        const f = data.forecasts[index];
+        document.getElementById('f-desc').value = f.desc;
+        document.getElementById('f-amount').value = f.amount.toFixed(2);
+        document.getElementById('f-type').value = f.type;
+        document.getElementById('f-period').value = f.period || 'monthly';
+        document.getElementById('f-edit-index').value = index;
+        
+        const btn = document.getElementById('f-submit-btn');
+        btn.innerText = "Değişiklikleri Kaydet 💾";
+        btn.style.background = "var(--success)";
+        
+        document.getElementById('forecast-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- FATURA VE BORÇ İŞLEMLERİ ---
+    document.getElementById('invoice-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        data.invoices.unshift({ 
+            name: document.getElementById('i-name').value, 
+            amount: calculateInput(document.getElementById('i-amount').value), 
+            subNo: document.getElementById('i-subno').value, 
+            notes: document.getElementById('i-notes').value, 
+            date: document.getElementById('i-date').value, 
+            paid: false 
+        });
+        document.getElementById('invoice-form').reset();
+        updateUI(true);
+    });
+
+    document.getElementById('debt-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        data.debts.unshift({ person: document.getElementById('d-person').value, amount: calculateInput(document.getElementById('d-amount').value), type: document.getElementById('d-type').value, date: document.getElementById('d-date').value, paid: false });
+        document.getElementById('debt-form').reset();
+        updateUI(true);
+    });
+
+    window.payInvoice = function(index) {
+        const inv = data.invoices[index];
+        let options = data.accounts.map((acc, i) => `${i}: ${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)`).join('\n');
+        let chosen = prompt(`Ödeme yapılacak hesap numarasını girin:\n${options}`);
+        if (chosen !== null && data.accounts[chosen]) {
+            data.accounts[chosen].balance -= inv.amount;
+            
+            // Fatura ödemesini de kategorilendirerek gider ekle
+            data.transactions.unshift({ 
+                desc: `Fatura: ${inv.name}`, 
+                amount: inv.amount, 
+                type: 'expense', 
+                accName: data.accounts[chosen].name,
+                categoryName: "Fatura",
+                subcategoryName: inv.name, // Fatura adını alt kategori gibi eşleştir
+                date: new Date().toISOString().split('T')[0]
+            });
+            inv.paid = true;
+            updateUI(true);
+        }
+    }
+
+    window.payDebt = function(index) {
+        const debt = data.debts[index];
+        let amountStr = prompt(`${debt.person} adlı kişiye ait kalan tutar: ${debt.amount.toFixed(2)} TL\nÖdemek/Tahsil etmek istediğiniz tutarı girin:`, debt.amount.toFixed(2));
+        if (amountStr === null) return; 
+        
+        let payAmount = parseFloat(amountStr);
+        if (isNaN(payAmount) || payAmount <= 0 || payAmount > debt.amount) {
+            alert("Geçersiz bakiye girdiniz veya kalan borçtan daha büyük bir tutar yazdınız.");
+            return;
+        }
+
+        let options = data.accounts.map((acc, i) => `${i}: ${acc.name} (${acc.hidden ? "******" : acc.balance.toFixed(2)} TL)`).join('\n');
+        const promptText = debt.type === 'debt' 
+            ? `Borç ödemesinin düşüleceği hesap numarasını girin:\n${options}`
+            : `Tahsil edilen alacağın ekleneceği hesap numarasını girin:\n${options}`;
+            
+        let chosen = prompt(promptText);
+        if (chosen !== null && data.accounts[chosen]) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            if(debt.type === 'debt') {
+                data.accounts[chosen].balance -= payAmount;
+                data.transactions.unshift({ desc: `Borç Ödeme: ${debt.person}`, amount: payAmount, type: 'expense', accName: data.accounts[chosen].name, date: todayStr });
+            } else {
+                data.accounts[chosen].balance += payAmount;
+                data.transactions.unshift({ desc: `Alacak Tahsilatı: ${debt.person}`, amount: payAmount, type: 'income', accName: data.accounts[chosen].name, date: todayStr });
+            }
+            
+            debt.amount -= payAmount;
+            if (debt.amount <= 0.01) { debt.amount = 0; debt.paid = true; }
+            updateUI(true);
+        }
+    }
+
+    window.deleteAccount = function(index) { if(confirm("Hesabı silmek istiyor musunuz?")) { data.accounts.splice(index, 1); updateUI(true); } }
+    window.deleteForecast = function(index) { data.forecasts.splice(index, 1); updateUI(true); }
+    window.deleteDebt = function(index) { data.debts.splice(index, 1); updateUI(true); }
+    window.deleteInvoice = function(index) { data.invoices.splice(index, 1); updateUI(true); }
+
+    loadFromCloud();
+</script>
+
+</body>
+</html>

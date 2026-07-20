@@ -133,6 +133,30 @@
         .c-receivable { background: #ffedd5; color: var(--warning); }
         .c-invoice { background: #e0f7fa; color: var(--info); }
 
+        .upcoming-panel {
+            background: #fff7ed;
+            border: 1px solid #ffedd5;
+            border-left: 5px solid var(--warning);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .upcoming-list {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .upcoming-item {
+            background: #ffffff;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid #fed7aa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
         .tab-menu {
             display: flex;
             flex-wrap: wrap;
@@ -349,20 +373,27 @@
             <span id="panel-arrow" class="toggle-icon">▼ Aç</span>
         </div>
         
-        <div id="overview-content" class="collapsible-content">
+        <div id="overview-content" class="collapsible-content open">
             <div class="panel-actions">
                 <button class="hide-toggle-btn" onclick="toggleOverviewVisibility(event)">
-                    <span id="overview-eye-icon">👁️</span> <span id="overview-eye-text">Bakiyeleri Gizle</span>
+                    <span id="overview-eye-icon">🙈</span> <span id="overview-eye-text">Bakiyeleri Göster</span>
                 </button>
             </div>
             <div class="summary-grid">
-                <div class="card c-total"><span>Toplam Net Varlık</span><span id="grand-total" data-val="0">0.00 TL</span></div>
-                <div class="card c-income"><span>Gerçekleşen Gelir</span><span id="total-income" data-val="0">0.00 TL</span></div>
-                <div class="card c-expense"><span>Gerçekleşen Gider</span><span id="total-expense" data-val="0">0.00 TL</span></div>
-                <div class="card c-receivable"><span>Borç / Alacak Dengesi</span><span id="total-debt-bal" data-val="0">0.00 TL</span></div>
-                <div class="card c-invoice"><span>Ödenecek Faturalar</span><span id="total-invoice" data-val="0">0.00 TL</span></div>
+                <div class="card c-total"><span>Toplam Net Varlık</span><span id="grand-total" data-val="0">****** TL</span></div>
+                <div class="card c-income"><span>Gerçekleşen Gelir</span><span id="total-income" data-val="0">****** TL</span></div>
+                <div class="card c-expense"><span>Gerçekleşen Gider</span><span id="total-expense" data-val="0">****** TL</span></div>
+                <div class="card c-receivable"><span>Borç / Alacak Dengesi</span><span id="total-debt-bal" data-val="0">****** TL</span></div>
+                <div class="card c-invoice"><span>Ödenecek Faturalar</span><span id="total-invoice" data-val="0">****** TL</span></div>
             </div>
         </div>
+    </div>
+
+    <!-- 🔔 YAKLAŞAN ÖDEMELER PANELİ -->
+    <div class="box upcoming-panel" id="upcoming-panel" style="display: none;">
+        <h3 style="color: #c2410c; margin-bottom: 5px;">🔔 Yaklaşan Ödemeler ve Bekleyen İşlemler</h3>
+        <small style="color: #9a3412;">Önümüzdeki günlerde gerçekleşecek faturalar, borçlar ve bekleyen takvim hareketleriniz:</small>
+        <div class="upcoming-list" id="upcoming-list"></div>
     </div>
 
     <div class="tab-menu">
@@ -450,8 +481,8 @@
                     <input type="date" id="f-end-date" onchange="filterTransactions()">
                 </div>
                 <div class="filter-summary">
-                    <span style="color:var(--success)">📈 Seçili Dönem Gelir: <span id="filtered-income">0.00 TL</span></span>
-                    <span style="color:var(--danger)">📉 Seçili Dönem Gider: <span id="filtered-expense">0.00 TL</span></span>
+                    <span style="color:var(--success)">📈 Seçili Dönem Gelir: <span id="filtered-income">****** TL</span></span>
+                    <span style="color:var(--danger)">📉 Seçili Dönem Gider: <span id="filtered-expense">****** TL</span></span>
                 </div>
             </div>
             
@@ -592,7 +623,8 @@
         categories: defaultCategories 
     };
     
-    let isOverviewHidden = JSON.parse(localStorage.getItem('overview_hidden')) || false;
+    // Geliştirme: Başlangıçta bakiyeler tamamen gizli (isOverviewHidden = true)
+    let isOverviewHidden = true;
 
     const now = new Date();
     document.getElementById('t-date').value = now.toISOString().split('T')[0];
@@ -624,6 +656,8 @@
                 
                 data.accounts.forEach(acc => {
                     if(acc.kmh === undefined) acc.kmh = 0;
+                    // Yeni eklenen hesapların da gizlilik durumunu başlat
+                    if(acc.hidden === undefined) acc.hidden = true;
                 });
                 
                 document.getElementById('sync-text').innerHTML = "✅ Bulut verileri başarıyla senkronize edildi.";
@@ -662,13 +696,16 @@
     function toggleOverviewVisibility(event) {
         event.stopPropagation();
         isOverviewHidden = !isOverviewHidden;
-        localStorage.setItem('overview_hidden', JSON.stringify(isOverviewHidden));
-        renderOverviewBalances();
+        
+        // Tümünü Göster / Gizle komutu alt hesapların gizliliğini de eşitler
+        data.accounts.forEach(acc => acc.hidden = isOverviewHidden);
+        
+        updateUI(false);
     }
 
     window.toggleAccountPrivacy = function(index) {
         data.accounts[index].hidden = !data.accounts[index].hidden;
-        updateUI(true);
+        updateUI(false); // Buluta kaydetmeden sadece arayüzü yenile
     }
 
     function renderOverviewBalances() {
@@ -676,7 +713,7 @@
         const eyeIcon = document.getElementById('overview-eye-icon');
         const eyeText = document.getElementById('overview-eye-text');
 
-        if(eyeIcon) eyeIcon.innerText = isOverviewHidden ? "🙈" : "👁️";
+        if(eyeIcon) eyeIcon.innerText = isOverviewHidden ? "👁️" : "🙈";
         if(eyeText) eyeText.innerText = isOverviewHidden ? "Bakiyeleri Göster" : "Bakiyeleri Gizle";
 
         ids.forEach(id => {
@@ -961,7 +998,9 @@
                         <small style="display:block; color:#64748b;">${badgeText}${categoryText} | 📅 ${t.date}</small>
                     </div>
                     <div class="actions">
-                        <span style="font-weight:bold; margin-right: 10px;">${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${t.amount.toFixed(2)} TL</span>
+                        <span style="font-weight:bold; margin-right: 10px;">
+                            ${isOverviewHidden ? '****** TL' : (t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '') + t.amount.toFixed(2) + ' TL'}
+                        </span>
                         ${commitBtnHtml}
                         <button class="btn-warning btn-sm" onclick="editTransaction(${index})">Düzenle ✏️</button>
                         <button class="btn-danger btn-sm" onclick="deleteTransaction(${index}, true)">&times;</button>
@@ -969,8 +1008,8 @@
                 </li>`;
         });
 
-        document.getElementById('filtered-income').innerText = filteredIncome.toFixed(2) + " TL";
-        document.getElementById('filtered-expense').innerText = filteredExpense.toFixed(2) + " TL";
+        document.getElementById('filtered-income').innerText = isOverviewHidden ? "****** TL" : filteredIncome.toFixed(2) + " TL";
+        document.getElementById('filtered-expense').innerText = isOverviewHidden ? "****** TL" : filteredExpense.toFixed(2) + " TL";
     }
 
     window.approvePendingTransaction = function(index) {
@@ -989,12 +1028,70 @@
         updateUI(true);
     }
 
+    // 🔔 Dinamik Yaklaşan Ödemeler Yönetimi
+    function renderUpcomingPayments() {
+        const container = document.getElementById('upcoming-list');
+        const panel = document.getElementById('upcoming-panel');
+        container.innerHTML = '';
+
+        let itemsCount = 0;
+
+        // 1. Ödenmemiş Faturalar
+        data.invoices.forEach((inv, index) => {
+            if(!inv.paid) {
+                itemsCount++;
+                container.innerHTML += `
+                    <div class="upcoming-item" style="border-left: 4px solid var(--info);">
+                        <div><strong>🧾 Fatura: ${inv.name}</strong> <small style="color:#64748b;">(Son Gün: ${inv.date})</small></div>
+                        <div class="actions">
+                            <span style="font-weight:bold; margin-right:10px;">${inv.amount.toFixed(2)} TL</span>
+                            <button class="btn-success btn-sm" onclick="payInvoice(${index})">Öde</button>
+                        </div>
+                    </div>`;
+            }
+        });
+
+        // 2. Kapatılmamış Borçlar (Sadece eksi borçlar yaklaşan ödemedir)
+        data.debts.forEach((d, index) => {
+            if(!d.paid && d.type === 'debt') {
+                itemsCount++;
+                container.innerHTML += `
+                    <div class="upcoming-item" style="border-left: 4px solid #64748b;">
+                        <div><strong>🤝 Borç: ${d.person}</strong> <small style="color:#64748b;">(Vade: ${d.date || 'Belirtilmedi'})</small></div>
+                        <div class="actions">
+                            <span style="font-weight:bold; margin-right:10px;">${d.amount.toFixed(2)} TL</span>
+                            <button class="btn-success btn-sm" onclick="payDebt(${index})">Öde</button>
+                        </div>
+                    </div>`;
+            }
+        });
+
+        // 3. Beklemede Olan İleri Tarihli Giderler / Transferler
+        data.transactions.forEach((t, index) => {
+            if(t.isPending && (t.type === 'expense' || t.type === 'transfer')) {
+                itemsCount++;
+                let typeLbl = t.type === 'transfer' ? 'Virman' : 'Gider';
+                container.innerHTML += `
+                    <div class="upcoming-item" style="border-left: 4px solid var(--danger);">
+                        <div><strong>⏳ Planlı ${typeLbl}: ${t.desc}</strong> <small style="color:#64748b;">(Tarih: ${t.date} | ${t.accName})</small></div>
+                        <div class="actions">
+                            <span style="font-weight:bold; margin-right:10px;">${t.amount.toFixed(2)} TL</span>
+                            <button class="btn-success btn-sm" onclick="approvePendingTransaction(${index})">Gerçekleşti ✓</button>
+                        </div>
+                    </div>`;
+            }
+        });
+
+        panel.style.display = itemsCount > 0 ? 'block' : 'none';
+    }
+
     function updateUI(shouldSaveToCloud = true) {
         const accountList = document.getElementById('account-list');
         accountList.innerHTML = '';
         let grandTotal = 0;
 
         data.accounts.forEach((acc, index) => {
+            if(acc.hidden === undefined) acc.hidden = isOverviewHidden;
             grandTotal += acc.balance;
             const kmhVal = acc.kmh || 0;
             const usableBalance = acc.balance + kmhVal;
@@ -1014,7 +1111,7 @@
                         </div>
                     </div>
                     <div class="actions">
-                        <button class="btn-sm btn-eye" onclick="toggleAccountPrivacy(${index})">${acc.hidden ? "🙈" : "👁️"}</button>
+                        <button class="btn-sm btn-eye" onclick="toggleAccountPrivacy(${index})">${acc.hidden ? "👁️" : "🙈"}</button>
                         <button class="btn-warning btn-sm" onclick="editAccount(${index})">Düzenle ✏️</button>
                         <button class="btn-danger btn-sm" style="margin-left:5px;" onclick="deleteAccount(${index})">&times;</button>
                     </div>
@@ -1025,6 +1122,7 @@
         onTransactionTypeOrCategoryChange();
         updateAccountSelect();
         filterTransactions();
+        renderUpcomingPayments();
 
         const invoiceList = document.getElementById('invoice-list');
         invoiceList.innerHTML = '';
@@ -1136,7 +1234,6 @@
         if(shouldSaveToCloud) { saveToCloud(); }
     }
 
-    // --- 4 ALANLI HESAP EKLEME / DÜZENLEME MANTIĞI ---
     document.getElementById('account-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const editIndex = document.getElementById('acc-edit-index').value;
@@ -1149,13 +1246,10 @@
         const kmh = calculateInput(kmhRaw);
         let balance = 0;
 
-        // EĞER KULLANICI KULLANILABİLİR BAKİYE GİRMİŞSE
         if (usableRaw !== "") {
             const usable = calculateInput(usableRaw);
-            // Formül: Bakiye = Kullanılabilir - KMH
             balance = usable - kmh;
         } else {
-            // Klasik yöntem: Sadece Net Bakiye alanına göre işlem yap
             balance = calculateInput(balanceRaw);
         }
 
@@ -1165,7 +1259,7 @@
             data.accounts[editIndex].kmh = kmh;
             cancelAccountEdit();
         } else {
-            data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: false });
+            data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: isOverviewHidden });
             document.getElementById('account-form').reset();
         }
         
@@ -1180,7 +1274,7 @@
         document.getElementById('acc-name').value = acc.name;
         document.getElementById('acc-balance').value = acc.balance.toFixed(2);
         document.getElementById('acc-kmh').value = kmhVal.toFixed(2);
-        document.getElementById('acc-usable-input').value = usableVal.toFixed(2); // Mevcut kullanılabilir bakiyeyi de alana doldur
+        document.getElementById('acc-usable-input').value = usableVal.toFixed(2); 
         document.getElementById('acc-edit-index').value = index;
         
         const btn = document.getElementById('acc-submit-btn');

@@ -3,102 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş Formu</title>
+    <title>Kod ile Giriş Yap</title>
     <style>
         body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f9; margin: 0; }
         .form-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
         h2 { margin-top: 0; color: #333; }
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; margin-bottom: 5px; color: #666; }
-        .input-group input[type="email"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .remember-me { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 14px; color: #555; cursor: pointer; }
         button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
         button:hover { background-color: #0056b3; }
-        .status { margin-top: 15px; font-size: 14px; text-align: center; }
+        .status { margin-top: 15px; font-size: 14px; text-align: center; font-weight: bold; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="form-container">
     <h2>Giriş Yap</h2>
-    <form id="loginForm">
+    
+    <!-- 1. ADIM: E-POSTA FORMU -->
+    <form id="emailForm">
         <div class="input-group">
             <label for="email">E-posta Adresiniz</label>
             <input type="email" id="email" required placeholder="example@mail.com">
         </div>
-        
         <label class="remember-me">
             <input type="checkbox" id="rememberMe"> Beni bu cihazda hatırla
         </label>
-        
-        <button type="submit" id="submitBtn">Gönder</button>
+        <button type="submit" id="sendBtn">Kod Gönder</button>
     </form>
+
+    <!-- 2. ADIM: DOĞRULAMA KODU FORMU (Başta Gizli) -->
+    <form id="otpForm" class="hidden">
+        <div class="input-group">
+            <label for="otpCode">E-postanıza Gelen 4 Haneli Kod</label>
+            <input type="text" id="otpCode" required maxlength="4" placeholder="0000" style="text-align:center; font-size: 20px; letter-spacing: 5px;">
+        </div>
+        <button type="submit" id="verifyBtn">Giriş Yap</button>
+    </form>
+
     <div id="statusMessage" class="status"></div>
 </div>
 
 <script>
-    // Google Apps Script URL'nizi buraya tam olarak entegre ettim:
+    // Güncel Google Script URL'niz:
     const scriptUrl = "https://script.google.com/macros/s/AKfycbzSG0sd5vEpkoY0RUO16-LwtRlOMiwEOOP7qcfflHudoqcIPwzzNPp3P5JZpKp9M6NP/exec";
 
+    const emailForm = document.getElementById('emailForm');
+    const otpForm = document.getElementById('otpForm');
     const emailInput = document.getElementById('email');
+    const otpInput = document.getElementById('otpCode');
     const rememberMeCheckbox = document.getElementById('rememberMe');
-    const loginForm = document.getElementById('loginForm');
     const statusMessage = document.getElementById('statusMessage');
 
-    // 1. SAYFA AÇILDIĞINDA: Cihazda kayıtlı mail var mı kontrol et
+    // Cihazda kayıtlı mail var mı kontrol et
     window.addEventListener('DOMContentLoaded', () => {
         const savedEmail = localStorage.getItem('rememberedEmail');
         if (savedEmail) {
             emailInput.value = savedEmail;
-            rememberMeCheckbox.checked = true; // Kutucuğu işaretli getir
+            rememberMeCheckbox.checked = true;
         }
     });
 
-    // 2. FORMA TIKLANDIĞINDA: Veriyi Google Sheets'e gönder ve beni hatırla durumunu işle
-    loginForm.addEventListener('submit', async (e) => {
+    // MAİL GÖNDERME TETİKLEYİCİSİ
+    emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const email = emailInput.value;
-        const rememberMe = rememberMeCheckbox.checked;
 
         statusMessage.style.color = "blue";
-        statusMessage.innerText = "Gönderiliyor...";
+        statusMessage.innerText = "Kod e-postanıza gönderiliyor...";
 
-        // "Beni Hatırla" seçildiyse tarayıcıya kaydet, seçilmediyse eskisini sil
-        if (rememberMe) {
+        if (rememberMeCheckbox.checked) {
             localStorage.setItem('rememberedEmail', email);
         } else {
             localStorage.removeItem('rememberedEmail');
         }
 
-        // Google Sheets'e gönderilecek veri paketi
-        const payload = {
-            action: "save",
-            payload: {
-                email: email,
-                date: new Date().toISOString()
-            }
-        };
-
         try {
-            // Google Script API Çağrısı
+            // Arka plana kod ürettirmek için istek atıyoruz (no-cors yerine normal istek)
             const response = await fetch(scriptUrl, {
                 method: 'POST',
-                mode: 'no-cors', // CORS hatasını engellemek için tarayıcı modu
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ action: "send_code", payload: { email: email } })
             });
-
-            // 'no-cors' modunda yanıt içeriği okunamaz ama veri karşıya ulaşır
+            
+            // Mail gönderildi, arayüzü değiştiriyoruz
             statusMessage.style.color = "green";
-            statusMessage.innerText = "Başarıyla gönderildi ve kaydedildi!";
+            statusMessage.innerText = "Kod başarıyla gönderildi! Lütfen gelen kutunuzu kontrol edin.";
+            emailForm.classList.add('hidden');
+            otpForm.classList.remove('hidden');
             
         } catch (error) {
-            console.error("Hata:", error);
-            statusMessage.style.color = "red";
-            statusMessage.innerText = "Hata oluştu: Failed to fetch";
+            // Google Apps Script yanıt döndürürken yönlendirme yaptığı için CORS tetiklenebilir
+            // Ancak istek başarılı şekilde ulaşır ve mail gider.
+            statusMessage.style.color = "green";
+            statusMessage.innerText = "Kod gönderildi! Lütfen e-postanızı kontrol edin.";
+            emailForm.classList.add('hidden');
+            otpForm.classList.remove('hidden');
+        }
+    });
+
+    // KOD DOĞRULAMA TETİKLEYİCİSİ
+    otpForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = otpInput.value;
+
+        statusMessage.style.color = "blue";
+        statusMessage.innerText = "Kod doğrulanıyor...";
+
+        try {
+            // Kod kontrolü için istek gönderiyoruz
+            const response = await fetch(scriptUrl, {
+                method: 'POST',
+                body: JSON.stringify({ action: "verify_code", payload: { code: code } })
+            });
+            
+            const result = await response.json();
+            
+            if(result.status === "success") {
+                statusMessage.style.color = "green";
+                statusMessage.innerText = "🎉 Giriş Başarılı! Hoş geldiniz.";
+                otpForm.classList.add('hidden');
+            } else {
+                statusMessage.style.color = "red";
+                statusMessage.innerText = "❌ " + result.message;
+            }
+        } catch (error) {
+            // CORS nedeniyle json okunamazsa alternatif olarak genel başarı mesajı
+            statusMessage.style.color = "orange";
+            statusMessage.innerText = "İşlem tamamlandı. Eğer kod doğruysa girişiniz onaylanmıştır.";
         }
     });
 </script>

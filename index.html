@@ -23,7 +23,7 @@
 <div class="form-container">
     <h2>Giriş Yap</h2>
     
-    <!-- 1. ADIM: E-POSTA FORMU -->
+    <!-- E-POSTA FORMU -->
     <form id="emailForm">
         <div class="input-group">
             <label for="email">E-posta Adresiniz</label>
@@ -35,7 +35,7 @@
         <button type="submit" id="sendBtn">Kod Gönder</button>
     </form>
 
-    <!-- 2. ADIM: DOĞRULAMA KODU FORMU (Başta Gizli) -->
+    <!-- DOĞRULAMA KODU FORMU -->
     <form id="otpForm" class="hidden">
         <div class="input-group">
             <label for="otpCode">E-postanıza Gelen 4 Haneli Kod</label>
@@ -48,7 +48,6 @@
 </div>
 
 <script>
-    // Güncel Google Script URL'niz:
     const scriptUrl = "https://script.google.com/macros/s/AKfycbzSG0sd5vEpkoY0RUO16-LwtRlOMiwEOOP7qcfflHudoqcIPwzzNPp3P5JZpKp9M6NP/exec";
 
     const emailForm = document.getElementById('emailForm');
@@ -58,7 +57,6 @@
     const rememberMeCheckbox = document.getElementById('rememberMe');
     const statusMessage = document.getElementById('statusMessage');
 
-    // Cihazda kayıtlı mail var mı kontrol et
     window.addEventListener('DOMContentLoaded', () => {
         const savedEmail = localStorage.getItem('rememberedEmail');
         if (savedEmail) {
@@ -67,7 +65,7 @@
         }
     });
 
-    // MAİL GÖNDERME TETİKLEYİCİSİ
+    // KOD İSTEME tetikleyicisi
     emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = emailInput.value;
@@ -82,29 +80,27 @@
         }
 
         try {
-            // Arka plana kod ürettirmek için istek atıyoruz (no-cors yerine normal istek)
-            const response = await fetch(scriptUrl, {
+            // Güvenli veri gönderimi için 'no-cors' kullanıyoruz
+            await fetch(scriptUrl, {
                 method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: "send_code", payload: { email: email } })
             });
             
-            // Mail gönderildi, arayüzü değiştiriyoruz
+            // İstek başarıyla fırlatıldıktan sonra arayüze geçiş yapıyoruz
             statusMessage.style.color = "green";
-            statusMessage.innerText = "Kod başarıyla gönderildi! Lütfen gelen kutunuzu kontrol edin.";
+            statusMessage.innerText = "Kod gönderildi! Lütfen gelen/spam kutunuzu kontrol edin.";
             emailForm.classList.add('hidden');
             otpForm.classList.remove('hidden');
             
         } catch (error) {
-            // Google Apps Script yanıt döndürürken yönlendirme yaptığı için CORS tetiklenebilir
-            // Ancak istek başarılı şekilde ulaşır ve mail gider.
-            statusMessage.style.color = "green";
-            statusMessage.innerText = "Kod gönderildi! Lütfen e-postanızı kontrol edin.";
-            emailForm.classList.add('hidden');
-            otpForm.classList.remove('hidden');
+            statusMessage.style.color = "red";
+            statusMessage.innerText = "Bir hata oluştu, lütfen izinleri kontrol edin.";
         }
     });
 
-    // KOD DOĞRULAMA TETİKLEYİCİSİ
+    // KOD DOĞRULAMA tetikleyicisi
     otpForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const code = otpInput.value;
@@ -113,26 +109,28 @@
         statusMessage.innerText = "Kod doğrulanıyor...";
 
         try {
-            // Kod kontrolü için istek gönderiyoruz
+            // Doğrulama kontrolü için Google'dan yanıt bekleyen açık istek
             const response = await fetch(scriptUrl, {
                 method: 'POST',
                 body: JSON.stringify({ action: "verify_code", payload: { code: code } })
             });
             
-            const result = await response.json();
+            const resultText = await response.text();
             
-            if(result.status === "success") {
+            if(resultText.includes("ONAYLANDI")) {
                 statusMessage.style.color = "green";
-                statusMessage.innerText = "🎉 Giriş Başarılı! Hoş geldiniz.";
+                statusMessage.innerText = "🎉 Giriş Başarılı! Sisteme yönlendiriliyorsunuz...";
                 otpForm.classList.add('hidden');
+            } else if(resultText.includes("HATALI")) {
+                statusMessage.style.color = "red";
+                statusMessage.innerText = "❌ Hatalı veya süresi geçmiş kod!";
             } else {
                 statusMessage.style.color = "red";
-                statusMessage.innerText = "❌ " + result.message;
+                statusMessage.innerText = "❌ Sistemde aktif kod bulunamadı. Yeniden isteyin.";
             }
         } catch (error) {
-            // CORS nedeniyle json okunamazsa alternatif olarak genel başarı mesajı
-            statusMessage.style.color = "orange";
-            statusMessage.innerText = "İşlem tamamlandı. Eğer kod doğruysa girişiniz onaylanmıştır.";
+            statusMessage.style.color = "red";
+            statusMessage.innerText = "Doğrulama esnasında bir bağlantı hatası oluştu.";
         }
     });
 </script>

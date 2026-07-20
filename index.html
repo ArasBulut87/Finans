@@ -241,6 +241,7 @@
         .transaction-item.income { border-left: 4px solid var(--success); }
         .transaction-item.expense { border-left: 4px solid var(--danger); }
         .transaction-item.transfer { border-left: 4px solid var(--transfer); }
+        .transaction-item.pending { border-left: 4px solid #94a3b8; background: #f8fafc; opacity: 0.8; }
         .debt-item.debt { border-left: 4px solid #64748b; }
         .debt-item.debt.paid { border-left: 4px solid #cbd5e1; opacity: 0.6; }
         .debt-item.receivable { border-left: 4px solid var(--warning); }
@@ -283,6 +284,16 @@
             font-size: 0.75rem;
             font-weight: bold;
             margin-top: 3px;
+            display: inline-block;
+        }
+
+        .pending-badge {
+            background: #e2e8f0;
+            color: #475569;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
             display: inline-block;
         }
 
@@ -379,7 +390,10 @@
                     <input type="text" id="acc-kmh" class="calc-input" placeholder="KMH Limiti (Varsayılan: 0)">
                 </div>
                 <span class="calc-hint">💡 Bakiye ve KMH kısımlarında matematiksel işlem yapabilirsiniz. (Örn: 4000*1.1)</span>
-                <button type="submit" id="acc-submit-btn" class="submit-btn">Yeni Hesap Ekle</button>
+                <div class="flex-group" style="margin-top: 5px;">
+                    <button type="submit" id="acc-submit-btn" class="submit-btn" style="flex:2;">Yeni Hesap Ekle</button>
+                    <button type="button" id="acc-cancel-btn" class="btn-danger" style="display:none; flex:1;" onclick="cancelAccountEdit()">İptal Et ✖</button>
+                </div>
             </form>
             <ul id="account-list"></ul>
         </div>
@@ -414,7 +428,10 @@
                     </select>
                     <input type="date" id="t-date" required>
                 </div>
-                <button type="submit" id="t-submit-btn" class="submit-btn">İşlemi Kaydet</button>
+                <div class="flex-group" style="margin-top: 5px;">
+                    <button type="submit" id="t-submit-btn" class="submit-btn" style="flex:2;">İşlemi Kaydet</button>
+                    <button type="button" id="t-cancel-btn" class="btn-danger" style="display:none; flex:1;" onclick="cancelTransactionEdit()">İptal Et ✖</button>
+                </div>
             </form>
             
             <h3>🔍 İşlem Hareketleri ve Harcama Analizi</h3>
@@ -499,7 +516,10 @@
                         <option value="monthly">Aylık Plan</option>
                         <option value="weekly">Haftalık Plan</option>
                     </select>
-                    <button type="submit" id="f-submit-btn" class="submit-btn">Plan Ekle</button>
+                </div>
+                <div class="flex-group" style="margin-top: 5px;">
+                    <button type="submit" id="f-submit-btn" class="submit-btn" style="flex:2;">Plan Ekle</button>
+                    <button type="button" id="f-cancel-btn" class="btn-danger" style="display:none; flex:1;" onclick="cancelForecastEdit()">İptal Et ✖</button>
                 </div>
             </form>
             
@@ -604,6 +624,7 @@
                 
                 data.transactions.forEach(t => {
                     if(!t.date) t.date = new Date().toISOString().split('T')[0];
+                    if(t.isPending === undefined) t.isPending = false;
                 });
                 
                 data.accounts.forEach(acc => {
@@ -914,8 +935,11 @@
                 if(endDateVal && tDate > new Date(endDateVal + 'T23:59:59')) return;
             }
 
-            if(t.type === 'income') filteredIncome += t.amount; 
-            else if(t.type === 'expense') filteredExpense += t.amount;
+            // Beklemedeki bekleyen gelecek tarihli işlemler dönem filtre özetlerine eklenmez
+            if(!t.isPending) {
+                if(t.type === 'income') filteredIncome += t.amount; 
+                else if(t.type === 'expense') filteredExpense += t.amount;
+            }
 
             let badgeText = `🏦 ${t.accName}`;
             if(t.type === 'transfer') {
@@ -931,14 +955,23 @@
                 }
             }
 
+            let pendingStatusHtml = t.isPending 
+                ? `<span class="pending-badge">⏳ Beklemede</span>` 
+                : '';
+            
+            let commitBtnHtml = t.isPending 
+                ? `<button class="btn-success btn-sm" onclick="approvePendingTransaction(${index})">Gerçekleşti ✓</button>` 
+                : '';
+
             transactionList.innerHTML += `
-                <li class="transaction-item ${t.type}">
+                <li class="transaction-item ${t.isPending ? 'pending' : t.type}">
                     <div>
-                        <strong>${t.desc}</strong> 
+                        <strong>${t.desc}</strong> ${pendingStatusHtml}
                         <small style="display:block; color:#64748b;">${badgeText}${categoryText} | 📅 ${t.date}</small>
                     </div>
                     <div class="actions">
                         <span style="font-weight:bold; margin-right: 10px;">${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${t.amount.toFixed(2)} TL</span>
+                        ${commitBtnHtml}
                         <button class="btn-warning btn-sm" onclick="editTransaction(${index})">Düzenle ✏️</button>
                         <button class="btn-danger btn-sm" onclick="deleteTransaction(${index}, true)">&times;</button>
                     </div>
@@ -947,6 +980,23 @@
 
         document.getElementById('filtered-income').innerText = filteredIncome.toFixed(2) + " TL";
         document.getElementById('filtered-expense').innerText = filteredExpense.toFixed(2) + " TL";
+    }
+
+    window.approvePendingTransaction = function(index) {
+        const t = data.transactions[index];
+        t.isPending = false;
+        
+        // Şimdi hesaba yansıt
+        if (t.type === 'transfer') {
+            const srcAcc = data.accounts.find(acc => acc.name === t.accName);
+            const tgtAcc = data.accounts.find(acc => acc.name === t.targetAccName);
+            if(srcAcc) srcAcc.balance -= t.amount;
+            if(tgtAcc) tgtAcc.balance += t.amount;
+        } else {
+            const targetAcc = data.accounts.find(acc => acc.name === t.accName);
+            if(targetAcc) targetAcc.balance += t.type === 'income' ? t.amount : -t.amount;
+        }
+        updateUI(true);
     }
 
     function updateUI(shouldSaveToCloud = true) {
@@ -1046,7 +1096,7 @@
 
             let actualAmount = 0;
             data.transactions.forEach(t => {
-                if(t.date && t.date.substring(0, 7) === selectedMonth) {
+                if(!t.isPending && t.date && t.date.substring(0, 7) === selectedMonth) {
                     if(t.type === f.type) {
                         const searchLower = f.desc.toLowerCase().trim();
                         const matchesDesc = t.desc.toLowerCase().includes(searchLower);
@@ -1082,7 +1132,12 @@
         });
 
         let totalIncome = 0, totalExpense = 0;
-        data.transactions.forEach(t => { if(t.type === 'income') totalIncome += t.amount; else if(t.type === 'expense') totalExpense += t.amount; });
+        data.transactions.forEach(t => { 
+            if(!t.isPending) {
+                if(t.type === 'income') totalIncome += t.amount; 
+                else if(t.type === 'expense') totalExpense += t.amount; 
+            }
+        });
 
         document.getElementById('grand-total').setAttribute('data-val', grandTotal);
         document.getElementById('total-income').setAttribute('data-val', totalIncome);
@@ -1110,14 +1165,12 @@
             data.accounts[editIndex].balance = balance;
             data.accounts[editIndex].kmh = kmh;
             
-            document.getElementById('acc-edit-index').value = "";
-            document.getElementById('acc-submit-btn').innerText = "Yeni Hesap Ekle";
-            document.getElementById('acc-submit-btn').style.background = "var(--primary)";
+            cancelAccountEdit();
         } else {
             data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: false });
+            document.getElementById('account-form').reset();
         }
         
-        document.getElementById('account-form').reset();
         updateUI(true);
     });
 
@@ -1131,8 +1184,17 @@
         const btn = document.getElementById('acc-submit-btn');
         btn.innerText = "Hesabı Güncelle 💾";
         btn.style.background = "var(--success)";
+        document.getElementById('acc-cancel-btn').style.display = "block";
         
         document.getElementById('account-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    window.cancelAccountEdit = function() {
+        document.getElementById('acc-edit-index').value = "";
+        document.getElementById('acc-submit-btn').innerText = "Yeni Hesap Ekle";
+        document.getElementById('acc-submit-btn').style.background = "var(--primary)";
+        document.getElementById('acc-cancel-btn').style.display = "none";
+        document.getElementById('account-form').reset();
     }
 
     // --- GELİR / GİDER EKLEME VE DÜZENLEME ---
@@ -1146,6 +1208,10 @@
         const date = document.getElementById('t-date').value;
         
         if(amount <= 0 || !sourceIndex) return;
+
+        // Tarih kontrolü: Eğer girilen tarih bugünden büyükse 'beklemede' (isPending) olur
+        const todayStr = new Date().toISOString().split('T')[0];
+        const isFuture = date > todayStr;
 
         // Kategorileri al
         let categoryName = "";
@@ -1171,8 +1237,10 @@
             if(!targetIndex) { alert("Lütfen alıcı hesabı seçin!"); return; }
             if(sourceIndex === targetIndex) { alert("Gönderen ve alıcı hesap aynı olamaz!"); return; }
             
-            data.accounts[sourceIndex].balance -= amount;
-            data.accounts[targetIndex].balance += amount;
+            if(!isFuture) {
+                data.accounts[sourceIndex].balance -= amount;
+                data.accounts[targetIndex].balance += amount;
+            }
             
             const transObj = {
                 desc: document.getElementById('t-desc').value || "Hesaplar Arası Transfer",
@@ -1180,7 +1248,8 @@
                 type,
                 accName: data.accounts[sourceIndex].name,
                 targetAccName: data.accounts[targetIndex].name,
-                date: date
+                date: date,
+                isPending: isFuture
             };
 
             if (editIndex !== "") {
@@ -1189,7 +1258,10 @@
                 data.transactions.unshift(transObj);
             }
         } else {
-            data.accounts[sourceIndex].balance += type === 'income' ? amount : -amount;
+            if(!isFuture) {
+                data.accounts[sourceIndex].balance += type === 'income' ? amount : -amount;
+            }
+            
             const transObj = { 
                 desc: document.getElementById('t-desc').value, 
                 amount, 
@@ -1197,7 +1269,8 @@
                 accName: data.accounts[sourceIndex].name,
                 categoryName,
                 subcategoryName,
-                date: date
+                date: date,
+                isPending: isFuture
             };
 
             if (editIndex !== "") {
@@ -1207,14 +1280,7 @@
             }
         }
         
-        // Formu temizle
-        document.getElementById('t-edit-index').value = "";
-        document.getElementById('t-submit-btn').innerText = "İşlemi Kaydet";
-        document.getElementById('t-submit-btn').style.background = "var(--primary)";
-        
-        document.getElementById('transaction-form').reset();
-        document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
-        onTransactionTypeOrCategoryChange(); 
+        cancelTransactionEdit();
         updateUI(true);
     });
 
@@ -1253,20 +1319,35 @@
         const btn = document.getElementById('t-submit-btn');
         btn.innerText = "Değişiklikleri Güncelle 💾";
         btn.style.background = "var(--success)";
+        document.getElementById('t-cancel-btn').style.display = "block";
 
         document.getElementById('transaction-form').scrollIntoView({ behavior: 'smooth' });
     }
 
+    window.cancelTransactionEdit = function() {
+        document.getElementById('t-edit-index').value = "";
+        document.getElementById('t-submit-btn').innerText = "İşlemi Kaydet";
+        document.getElementById('t-submit-btn').style.background = "var(--primary)";
+        document.getElementById('t-cancel-btn').style.display = "none";
+        
+        document.getElementById('transaction-form').reset();
+        document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+        onTransactionTypeOrCategoryChange();
+    }
+
     window.deleteTransaction = function(index, shouldUpdateUI = true) {
         const t = data.transactions[index];
-        if (t.type === 'transfer') {
-            const srcAcc = data.accounts.find(acc => acc.name === t.accName);
-            const tgtAcc = data.accounts.find(acc => acc.name === t.targetAccName);
-            if(srcAcc) srcAcc.balance += t.amount;
-            if(tgtAcc) tgtAcc.balance -= t.amount;
-        } else {
-            const targetAcc = data.accounts.find(acc => acc.name === t.accName);
-            if(targetAcc) targetAcc.balance += t.type === 'income' ? -t.amount : t.amount;
+        // Sadece gerçekleşmiş işlemler geri çevrilir, beklemedekiler zaten hesapları etkilememiştir
+        if (!t.isPending) {
+            if (t.type === 'transfer') {
+                const srcAcc = data.accounts.find(acc => acc.name === t.accName);
+                const tgtAcc = data.accounts.find(acc => acc.name === t.targetAccName);
+                if(srcAcc) srcAcc.balance += t.amount;
+                if(tgtAcc) tgtAcc.balance -= t.amount;
+            } else {
+                const targetAcc = data.accounts.find(acc => acc.name === t.accName);
+                if(targetAcc) targetAcc.balance += t.type === 'income' ? -t.amount : t.amount;
+            }
         }
         data.transactions.splice(index, 1);
         if(shouldUpdateUI) updateUI(true);
@@ -1288,14 +1369,12 @@
 
         if(editIndex !== "") {
             data.forecasts[editIndex] = newForecast;
-            document.getElementById('f-edit-index').value = "";
-            document.getElementById('f-submit-btn').innerText = "Plan Ekle";
-            document.getElementById('f-submit-btn').style.background = "var(--primary)";
+            cancelForecastEdit();
         } else {
             data.forecasts.push(newForecast);
+            document.getElementById('forecast-form').reset();
         }
 
-        document.getElementById('forecast-form').reset();
         updateUI(true);
     });
 
@@ -1310,8 +1389,17 @@
         const btn = document.getElementById('f-submit-btn');
         btn.innerText = "Değişiklikleri Kaydet 💾";
         btn.style.background = "var(--success)";
+        document.getElementById('f-cancel-btn').style.display = "block";
         
         document.getElementById('forecast-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    window.cancelForecastEdit = function() {
+        document.getElementById('f-edit-index').value = "";
+        document.getElementById('f-submit-btn').innerText = "Plan Ekle";
+        document.getElementById('f-submit-btn').style.background = "var(--primary)";
+        document.getElementById('f-cancel-btn').style.display = "none";
+        document.getElementById('forecast-form').reset();
     }
 
     // --- FATURA VE BORÇ İŞLEMLERİ ---
@@ -1350,8 +1438,9 @@
                 type: 'expense', 
                 accName: data.accounts[chosen].name,
                 categoryName: "Fatura",
-                subcategoryName: inv.name, // Fatura adını alt kategori gibi eşleştir
-                date: new Date().toISOString().split('T')[0]
+                subcategoryName: inv.name, 
+                date: new Date().toISOString().split('T')[0],
+                isPending: false
             });
             inv.paid = true;
             updateUI(true);
@@ -1379,10 +1468,10 @@
             const todayStr = new Date().toISOString().split('T')[0];
             if(debt.type === 'debt') {
                 data.accounts[chosen].balance -= payAmount;
-                data.transactions.unshift({ desc: `Borç Ödeme: ${debt.person}`, amount: payAmount, type: 'expense', accName: data.accounts[chosen].name, date: todayStr });
+                data.transactions.unshift({ desc: `Borç Ödeme: ${debt.person}`, amount: payAmount, type: 'expense', accName: data.accounts[chosen].name, date: todayStr, isPending: false });
             } else {
                 data.accounts[chosen].balance += payAmount;
-                data.transactions.unshift({ desc: `Alacak Tahsilatı: ${debt.person}`, amount: payAmount, type: 'income', accName: data.accounts[chosen].name, date: todayStr });
+                data.transactions.unshift({ desc: `Alacak Tahsilatı: ${debt.person}`, amount: payAmount, type: 'income', accName: data.accounts[chosen].name, date: todayStr, isPending: false });
             }
             
             debt.amount -= payAmount;

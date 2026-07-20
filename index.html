@@ -25,6 +25,41 @@
             padding: 20px;
         }
 
+        /* 🔒 GÜVENLİK DUVARI (AUTH MODAL) STİLLERİ */
+        .auth-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99999;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .auth-card {
+            background: var(--surface);
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .auth-card h2 { margin-top: 0; color: #0f172a; font-size: 1.6rem; }
+        .auth-card p { color: #64748b; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px; }
+        .auth-form { display: flex; flex-direction: column; gap: 12px; }
+        .auth-input { padding: 12px; font-size: 1.05rem; text-align: center; letter-spacing: 1px; }
+        .auth-btn { background: var(--primary); color: white; padding: 12px; font-size: 1rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .auth-btn:hover { background: #4338ca; }
+        .auth-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .auth-msg { margin-top: 12px; font-size: 0.9rem; font-weight: 500; }
+        
+        /* Ana İçerik Gizleme Konteyneri */
+        .app-hidden { display: none !important; }
+
         .main-container {
             max-width: 1100px;
             margin: 0 auto;
@@ -360,7 +395,31 @@
 </head>
 <body>
 
-<div class="main-container">
+<!-- 🔒 GÜVENLİK GİRİŞ EKRANI PANELI -->
+<div id="auth-screen" class="auth-overlay">
+    <div class="auth-card">
+        <h2>🔒 Finansal Güvenlik Duvarı</h2>
+        <p>Hesap hareketlerinizi ve bakiyelerinizi görüntülemek için sistemde kayıtlı e-posta adresinizi doğrulamanız gerekmektedir.</p>
+        
+        <!-- Aşama 1: E-posta İsteği -->
+        <div id="auth-step-1" class="auth-form">
+            <input type="email" id="auth-email" class="auth-input" placeholder="E-posta Adresiniz (örn: adiniz@mail.com)" required>
+            <button id="auth-send-btn" class="auth-btn" onclick="requestVerificationCode()">Doğrulama Kodu Gönder ✉️</button>
+        </div>
+
+        <!-- Aşama 2: Kod Girişi (Başlangıçta gizli) -->
+        <div id="auth-step-2" class="auth-form" style="display: none;">
+            <input type="text" id="auth-code" class="auth-input" placeholder="6 Haneli Kod" maxlength="6" required>
+            <button id="auth-verify-btn" class="auth-btn" onclick="verifyCode()">Giriş Yap 🚀</button>
+            <button class="btn-sm btn-eye" style="margin-top: 10px; background: transparent; border:none;" onclick="backToEmailStep()">⬅️ E-posta Değiştir</button>
+        </div>
+
+        <div id="auth-message" class="auth-msg"></div>
+    </div>
+</div>
+
+<!-- 🌐 UYGULAMA ANA İÇERİĞİ (Giriş yapana kadar tamamen görünmezdir) -->
+<div id="app-content" class="main-container app-hidden">
     
     <div class="cloud-status">
         <div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div>
@@ -623,7 +682,6 @@
         categories: defaultCategories 
     };
     
-    // Geliştirme: Başlangıçta bakiyeler tamamen gizli (isOverviewHidden = true)
     let isOverviewHidden = true;
 
     const now = new Date();
@@ -631,6 +689,94 @@
     
     const currentYearMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     document.getElementById('forecast-month-filter').value = currentYearMonth;
+
+    // 🔑 GÜVENLİK VE OTP DOĞRULAMA FONKSİYONLARI
+    async function requestVerificationCode() {
+        const emailInput = document.getElementById('auth-email').value.trim();
+        const msgEl = document.getElementById('auth-message');
+        const sendBtn = document.getElementById('auth-send-btn');
+        
+        if (!emailInput || !emailInput.includes('@')) {
+            msgEl.style.color = "var(--danger)";
+            msgEl.innerText = "❌ Lütfen geçerli bir e-posta adresi girin.";
+            return;
+        }
+
+        sendBtn.disabled = true;
+        msgEl.style.color = "#fff";
+        msgEl.innerText = "⏳ Kod oluşturuluyor ve e-postanıza gönderiliyor...";
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "sendOTP", email: emailInput })
+            });
+            const result = await response.json();
+            
+            if (result.status === "success") {
+                msgEl.style.color = "var(--success)";
+                msgEl.innerText = "✅ Doğrulama kodu e-postanıza gönderildi! Lütfen kutunuzu kontrol edin.";
+                document.getElementById('auth-step-1').style.display = 'none';
+                document.getElementById('auth-step-2').style.display = 'flex';
+            } else {
+                throw new Error(result.message || "Kod gönderilemedi.");
+            }
+        } catch(e) {
+            msgEl.style.color = "var(--danger)";
+            msgEl.innerText = "❌ Hata: " + e.message;
+            sendBtn.disabled = false;
+        }
+    }
+
+    async function verifyCode() {
+        const codeInput = document.getElementById('auth-code').value.trim();
+        const msgEl = document.getElementById('auth-message');
+        const verifyBtn = document.getElementById('auth-verify-btn');
+
+        if(codeInput.length < 4) {
+            msgEl.style.color = "var(--danger)";
+            msgEl.innerText = "❌ Eksik veya hatalı kod girdiniz.";
+            return;
+        }
+
+        verifyBtn.disabled = true;
+        msgEl.style.color = "#fff";
+        msgEl.innerText = "⏳ Kod doğrulanıyor...";
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "verifyOTP", code: codeInput })
+            });
+            const result = await response.json();
+
+            if(result.status === "success") {
+                msgEl.style.color = "var(--success)";
+                msgEl.innerText = "🎉 Doğrulama başarılı! Giriş yapılıyor...";
+                
+                // Güvenlik duvarını kaldır, uygulamayı göster ve bulut verisini indir
+                setTimeout(() => {
+                    document.getElementById('auth-screen').style.display = 'none';
+                    document.getElementById('app-content').classList.remove('app-hidden');
+                    loadFromCloud();
+                }, 800);
+            } else {
+                throw new Error("Girdiğiniz kod hatalı veya süresi dolmuş.");
+            }
+        } catch(e) {
+            msgEl.style.color = "var(--danger)";
+            msgEl.innerText = "❌ Giriş Başarısız: " + e.message;
+            verifyBtn.disabled = false;
+        }
+    }
+
+    function backToEmailStep() {
+        document.getElementById('auth-step-2').style.display = 'none';
+        document.getElementById('auth-step-1').style.display = 'flex';
+        document.getElementById('auth-send-btn').disabled = false;
+        document.getElementById('auth-message').innerText = '';
+        document.getElementById('auth-code').value = '';
+    }
 
     async function loadFromCloud() {
         document.getElementById('sync-text').innerHTML = "⏳ Veriler buluttan indiriliyor...";
@@ -656,7 +802,6 @@
                 
                 data.accounts.forEach(acc => {
                     if(acc.kmh === undefined) acc.kmh = 0;
-                    // Yeni eklenen hesapların da gizlilik durumunu başlat
                     if(acc.hidden === undefined) acc.hidden = true;
                 });
                 
@@ -696,16 +841,13 @@
     function toggleOverviewVisibility(event) {
         event.stopPropagation();
         isOverviewHidden = !isOverviewHidden;
-        
-        // Tümünü Göster / Gizle komutu alt hesapların gizliliğini de eşitler
         data.accounts.forEach(acc => acc.hidden = isOverviewHidden);
-        
         updateUI(false);
     }
 
     window.toggleAccountPrivacy = function(index) {
         data.accounts[index].hidden = !data.accounts[index].hidden;
-        updateUI(false); // Buluta kaydetmeden sadece arayüzü yenile
+        updateUI(false);
     }
 
     function renderOverviewBalances() {
@@ -934,6 +1076,7 @@
         const endDateVal = document.getElementById('f-end-date').value;
 
         const transactionList = document.getElementById('transaction-list');
+        if(!transactionList) return;
         transactionList.innerHTML = '';
 
         let filteredIncome = 0;
@@ -1028,15 +1171,14 @@
         updateUI(true);
     }
 
-    // 🔔 Dinamik Yaklaşan Ödemeler Yönetimi
     function renderUpcomingPayments() {
         const container = document.getElementById('upcoming-list');
         const panel = document.getElementById('upcoming-panel');
+        if(!container || !panel) return;
         container.innerHTML = '';
 
         let itemsCount = 0;
 
-        // 1. Ödenmemiş Faturalar
         data.invoices.forEach((inv, index) => {
             if(!inv.paid) {
                 itemsCount++;
@@ -1051,7 +1193,6 @@
             }
         });
 
-        // 2. Kapatılmamış Borçlar (Sadece eksi borçlar yaklaşan ödemedir)
         data.debts.forEach((d, index) => {
             if(!d.paid && d.type === 'debt') {
                 itemsCount++;
@@ -1066,7 +1207,6 @@
             }
         });
 
-        // 3. Beklemede Olan İleri Tarihli Giderler / Transferler
         data.transactions.forEach((t, index) => {
             if(t.isPending && (t.type === 'expense' || t.type === 'transfer')) {
                 itemsCount++;
@@ -1086,6 +1226,9 @@
     }
 
     function updateUI(shouldSaveToCloud = true) {
+        // Eğer uygulama kilitliyse arayüz render işlemlerini atla
+        if(document.getElementById('app-content').classList.contains('app-hidden')) return;
+
         const accountList = document.getElementById('account-list');
         accountList.innerHTML = '';
         let grandTotal = 0;
@@ -1571,7 +1714,7 @@
     window.deleteDebt = function(index) { data.debts.splice(index, 1); updateUI(true); }
     window.deleteInvoice = function(index) { data.invoices.splice(index, 1); updateUI(true); }
 
-    loadFromCloud();
+    // NOT: loadFromCloud() artık doğrudan çağrılmıyor, verifyCode() aşamasından sonra çalışıyor.
 </script>
 
 </body>

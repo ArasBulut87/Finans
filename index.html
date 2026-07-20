@@ -250,7 +250,7 @@
         .invoice-item.paid { border-left: 4px solid #cbd5e1; opacity: 0.6; }
 
         .flex-group { display: flex; gap: 10px; }
-        .flex-group input, .flex-group select { flex: 1; }
+        .flex-group input, .flex-group select { flex: 1; min-width: 0; }
         .actions { display: flex; gap: 5px; align-items: center; }
         .sub-info { font-size: 0.8rem; color: #64748b; display: block; margin-top: 2px; }
         
@@ -380,11 +380,12 @@
             <form id="account-form">
                 <input type="hidden" id="acc-edit-index" value="">
                 <div class="flex-group">
-                    <input type="text" id="acc-name" placeholder="Hesap Adı (örn: A Bankası, Nakit)" required>
-                    <input type="text" id="acc-balance" class="calc-input" placeholder="Net Bakiye (örn: 5000)">
-                    <input type="text" id="acc-kmh" class="calc-input" placeholder="KMH Limiti (Varsayılan: 0)">
+                    <input type="text" id="acc-name" placeholder="Hesap Adı (örn: A Bankası)" required>
+                    <input type="text" id="acc-balance" class="calc-input" placeholder="Net Bakiye (örn: 3000)">
+                    <input type="text" id="acc-kmh" class="calc-input" placeholder="KMH Limiti (örn: 2000)">
+                    <input type="text" id="acc-usable-input" class="calc-input" placeholder="Kullanılabilir Bakiye (örn: 5000)">
                 </div>
-                <span class="calc-hint">💡 Bakiye boş bırakılıp sadece KMH girilirse, hesap bakiyesi otomatik olarak eksiye (-KMH) çekilir.</span>
+                <span class="calc-hint">💡 İster <b>Net Bakiye</b> girin, ister <b>Kullanılabilir Bakiye</b> girin; sistem diğerini KMH limitine göre otomatik hesaplar ve eşitler.</span>
                 <div class="flex-group" style="margin-top: 5px;">
                     <button type="submit" id="acc-submit-btn" class="submit-btn" style="flex:2;">Yeni Hesap Ekle</button>
                     <button type="button" id="acc-cancel-btn" class="btn-danger" style="display:none; flex:1;" onclick="cancelAccountEdit()">İptal Et ✖</button>
@@ -398,7 +399,7 @@
             <form id="transaction-form">
                 <input type="hidden" id="t-edit-index" value="">
                 <div class="flex-group">
-                    <input type="text" id="t-desc" placeholder="Açıklama (örn: Haftalık Market Alışverişi, Kira vb.)" required>
+                    <input type="text" id="t-desc" placeholder="Açıklama" required>
                     <input type="text" id="t-amount" class="calc-input" placeholder="Tutar veya İşlem" required>
                 </div>
                 <div class="flex-group">
@@ -464,7 +465,7 @@
                 <div id="cat-mgr-content" class="collapsible-content">
                     <form id="category-add-form" style="background:#fff; margin-top: 10px;" onsubmit="addNewCategory(event)">
                         <div class="flex-group">
-                            <input type="text" id="new-cat-name" placeholder="Yeni Ana Kategori Adı (örn: Eğlence)" required>
+                            <input type="text" id="new-cat-name" placeholder="Yeni Ana Kategori Adı" required>
                             <select id="new-cat-type">
                                 <option value="expense">Gider Kategorisi</option>
                                 <option value="income">Gelir Kategorisi</option>
@@ -478,7 +479,7 @@
                             <select id="sub-parent-select" required>
                                 <option value="">Alt Kategori Eklenecek Ana Kategori Seçin...</option>
                             </select>
-                            <input type="text" id="new-sub-name" placeholder="Yeni Alt Kategori Adı (örn: Sinema)" required>
+                            <input type="text" id="new-sub-name" placeholder="Yeni Alt Kategori Adı" required>
                             <button type="submit" class="submit-btn" style="padding: 0 15px;">Alt Kategori Ekle</button>
                         </div>
                     </form>
@@ -499,7 +500,7 @@
             <form id="forecast-form">
                 <input type="hidden" id="f-edit-index" value="">
                 <div class="flex-group">
-                    <input type="text" id="f-desc" placeholder="Kategori/Açıklama (örn: Market, Kira, Maaş)" required>
+                    <input type="text" id="f-desc" placeholder="Kategori/Açıklama" required>
                     <input type="text" id="f-amount" class="calc-input" placeholder="Tahmini Tutar" required>
                 </div>
                 <div class="flex-group" style="margin-top:10px;">
@@ -536,10 +537,10 @@
         <div id="tab-invoices" class="tab-content">
             <h3>Fatura Takibi</h3>
             <form id="invoice-form" class="flex-group" style="flex-direction: row; flex-wrap: wrap;">
-                <input type="text" id="i-name" placeholder="Fatura Adı (örn: Elektrik, İnternet)" style="flex: 1.5;" required>
+                <input type="text" id="i-name" placeholder="Fatura Adı" style="flex: 1.5;" required>
                 <input type="text" id="i-amount" class="calc-input" placeholder="Tutar" style="flex: 0.8;" required>
                 <input type="text" id="i-subno" placeholder="Abone No (İsteğe Bağlı)" style="flex: 1;">
-                <input type="text" id="i-notes" placeholder="Not (örn: otomatik ödemede, her ayın 15'i)" style="flex: 1.5;">
+                <input type="text" id="i-notes" placeholder="Not" style="flex: 1.5;">
                 <input type="date" id="i-date" style="flex: 1;" required>
                 <button type="submit" class="submit-btn" style="flex: 0.8;">Fatura Ekle</button>
             </form>
@@ -1135,22 +1136,26 @@
         if(shouldSaveToCloud) { saveToCloud(); }
     }
 
-    // --- HESAP EKLEME / GÜNCELLEME (KMH ZEKA MANTIĞI EKLENDİ) ---
+    // --- 4 ALANLI HESAP EKLEME / DÜZENLEME MANTIĞI ---
     document.getElementById('account-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const editIndex = document.getElementById('acc-edit-index').value;
         const accName = document.getElementById('acc-name').value;
         
         const balanceRaw = document.getElementById('acc-balance').value.trim();
-        const kmh = calculateInput(document.getElementById('acc-kmh').value);
+        const kmhRaw = document.getElementById('acc-kmh').value.trim();
+        const usableRaw = document.getElementById('acc-usable-input').value.trim();
 
+        const kmh = calculateInput(kmhRaw);
         let balance = 0;
-        
-        // Eğer KMH girilmişse ve Net Bakiye alanına dokunulmamışsa (veya 0 ise)
-        // Kullanıcının girdiğini 'Kullanılabilir Bakiye' kabul edip hesap bakiyesini eksiye çekeriz
-        if (kmh > 0 && (balanceRaw === "" || calculateInput(balanceRaw) === 0)) {
-            balance = -kmh;
+
+        // EĞER KULLANICI KULLANILABİLİR BAKİYE GİRMİŞSE
+        if (usableRaw !== "") {
+            const usable = calculateInput(usableRaw);
+            // Formül: Bakiye = Kullanılabilir - KMH
+            balance = usable - kmh;
         } else {
+            // Klasik yöntem: Sadece Net Bakiye alanına göre işlem yap
             balance = calculateInput(balanceRaw);
         }
 
@@ -1158,7 +1163,6 @@
             data.accounts[editIndex].name = accName;
             data.accounts[editIndex].balance = balance;
             data.accounts[editIndex].kmh = kmh;
-            
             cancelAccountEdit();
         } else {
             data.accounts.push({ name: accName, balance: balance, kmh: kmh, hidden: false });
@@ -1170,9 +1174,13 @@
 
     window.editAccount = function(index) {
         const acc = data.accounts[index];
+        const kmhVal = acc.kmh || 0;
+        const usableVal = acc.balance + kmhVal;
+
         document.getElementById('acc-name').value = acc.name;
         document.getElementById('acc-balance').value = acc.balance.toFixed(2);
-        document.getElementById('acc-kmh').value = (acc.kmh || 0).toFixed(2);
+        document.getElementById('acc-kmh').value = kmhVal.toFixed(2);
+        document.getElementById('acc-usable-input').value = usableVal.toFixed(2); // Mevcut kullanılabilir bakiyeyi de alana doldur
         document.getElementById('acc-edit-index').value = index;
         
         const btn = document.getElementById('acc-submit-btn');

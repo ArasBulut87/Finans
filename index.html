@@ -3,89 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş Formu</title>
+    <title>Sistem Girişi</title>
     <style>
         body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f9; margin: 0; }
-        .form-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
-        h2 { margin-top: 0; color: #333; }
-        .input-group { margin-bottom: 15px; }
+        .form-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        h2 { margin-top: 0; color: #333; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
         .input-group label { display: block; margin-bottom: 5px; color: #666; }
-        .input-group input[type="email"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .remember-me { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 14px; color: #555; cursor: pointer; }
-        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #0056b3; }
-        .status { margin-top: 15px; font-size: 14px; text-align: center; font-weight: bold; }
+        .status { margin-top: 15px; font-size: 14px; font-weight: bold; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="form-container">
-    <h2>Giriş Yap</h2>
-    <form id="loginForm">
+    <h2>Yönetici Girişi</h2>
+    <p>ziyabulutaras@gmail.com</p>
+    
+    <!-- 1. AŞAMA: SADECE KOD İSTEME BUTONU -->
+    <div id="requestArea">
+        <button id="sendBtn">Giriş Kodu Gönder</button>
+    </div>
+
+    <!-- 2. AŞAMA: DOĞRULAMA KODU FORMU (Başta Gizli) -->
+    <form id="otpForm" class="hidden">
         <div class="input-group">
-            <label for="email">E-posta Adresiniz</label>
-            <input type="email" id="email" required placeholder="example@mail.com">
+            <label for="otpCode">E-postanıza Gelen 4 Haneli Kod</label>
+            <input type="text" id="otpCode" required maxlength="4" placeholder="0000" style="text-align:center; font-size: 20px; letter-spacing: 5px;">
         </div>
-        
-        <label class="remember-me">
-            <input type="checkbox" id="rememberMe"> Beni bu cihazda hatırla
-        </label>
-        
-        <button type="submit" id="submitBtn">Gönder</button>
+        <button type="submit" id="verifyBtn">Giriş Yap</button>
     </form>
+
     <div id="statusMessage" class="status"></div>
 </div>
 
 <script>
     const scriptUrl = "https://script.google.com/macros/s/AKfycbzSG0sd5vEpkoY0RUO16-LwtRlOMiwEOOP7qcfflHudoqcIPwzzNPp3P5JZpKp9M6NP/exec";
 
-    const emailInput = document.getElementById('email');
-    const rememberMeCheckbox = document.getElementById('rememberMe');
-    const loginForm = document.getElementById('loginForm');
+    const requestArea = document.getElementById('requestArea');
+    const sendBtn = document.getElementById('sendBtn');
+    const otpForm = document.getElementById('otpForm');
+    const otpInput = document.getElementById('otpCode');
     const statusMessage = document.getElementById('statusMessage');
 
-    // Sayfa açıldığında tarayıcı hafızasını kontrol et
-    window.addEventListener('DOMContentLoaded', () => {
-        const savedEmail = localStorage.getItem('rememberedEmail');
-        if (savedEmail) {
-            emailInput.value = savedEmail;
-            rememberMeCheckbox.checked = true;
-        }
-    });
-
-    // Form gönderildiğinde
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const email = emailInput.value;
-
+    // KOD İSTEME tetikleyicisi
+    sendBtn.addEventListener('click', async () => {
         statusMessage.style.color = "blue";
-        statusMessage.innerText = "Gönderiliyor...";
-
-        // Beni hatırla kontrolü
-        if (rememberMeCheckbox.checked) {
-            localStorage.setItem('rememberedEmail', email);
-        } else {
-            localStorage.removeItem('rememberedEmail');
-        }
+        statusMessage.innerText = "Kod e-postanıza gönderiliyor...";
+        sendBtn.disabled = true;
 
         try {
             await fetch(scriptUrl, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: "save",
-                    payload: { email: email, date: new Date().toISOString() }
-                })
+                body: JSON.stringify({ action: "send_code" })
             });
-
+            
             statusMessage.style.color = "green";
-            statusMessage.innerText = "Başarıyla gönderildi ve kaydedildi!";
+            statusMessage.innerText = "Kod gönderildi! Lütfen gelen/spam kutunuzu kontrol edin.";
+            requestArea.classList.add('hidden');
+            otpForm.classList.remove('hidden');
             
         } catch (error) {
             statusMessage.style.color = "red";
-            statusMessage.innerText = "Bağlantı hatası oluştu.";
+            statusMessage.innerText = "Bir hata oluştu, lütfen tekrar deneyin.";
+            sendBtn.disabled = false;
+        }
+    });
+
+    // KOD DOĞRULAMA tetikleyicisi
+    otpForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const code = otpInput.value;
+
+        statusMessage.style.color = "blue";
+        statusMessage.innerText = "Kod doğrulanıyor...";
+
+        try {
+            const response = await fetch(scriptUrl, {
+                method: 'POST',
+                body: JSON.stringify({ action: "verify_code", payload: { code: code } })
+            });
+            
+            const resultText = await response.text();
+            
+            if(resultText.includes("ONAYLANDI")) {
+                statusMessage.style.color = "green";
+                statusMessage.innerText = "🎉 Giriş Başarılı! Hoş geldiniz.";
+                otpForm.classList.add('hidden');
+            } else if(resultText.includes("HATALI")) {
+                statusMessage.style.color = "red";
+                statusMessage.innerText = "❌ Hatalı kod girdiniz!";
+            } else {
+                statusMessage.style.color = "red";
+                statusMessage.innerText = "❌ Süresi geçmiş veya geçersiz işlem.";
+            }
+        } catch (error) {
+            statusMessage.style.color = "red";
+            statusMessage.innerText = "Doğrulama esnasında bir hata oluştu.";
         }
     });
 </script>

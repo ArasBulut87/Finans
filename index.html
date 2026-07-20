@@ -49,6 +49,9 @@
 
 <script>
     const scriptUrl = "https://script.google.com/macros/s/AKfycbzSG0sd5vEpkoY0RUO16-LwtRlOMiwEOOP7qcfflHudoqcIPwzzNPp3P5JZpKp9M6NP/exec";
+    
+    // Yalnızca bu mail adresine izin verilecek:
+    const allowedEmail = "ziyabulutaras@gmail.com";
 
     const emailForm = document.getElementById('emailForm');
     const otpForm = document.getElementById('otpForm');
@@ -65,30 +68,35 @@
         }
     });
 
-    // KOD İSTEME tetikleyicisi
+    // KOD İSTEME
     emailForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = emailInput.value;
+        const inputEmail = emailInput.value.toLowerCase().trim();
+
+        // Ön yüzde mail doğrulama kontrolü
+        if (inputEmail !== allowedEmail) {
+            statusMessage.style.color = "red";
+            statusMessage.innerText = "❌ Yetkisiz Giriş: Bu e-posta adresi kayıtlı değil!";
+            return;
+        }
 
         statusMessage.style.color = "blue";
         statusMessage.innerText = "Kod e-postanıza gönderiliyor...";
 
         if (rememberMeCheckbox.checked) {
-            localStorage.setItem('rememberedEmail', email);
+            localStorage.setItem('rememberedEmail', inputEmail);
         } else {
             localStorage.removeItem('rememberedEmail');
         }
 
         try {
-            // Güvenli veri gönderimi için 'no-cors' kullanıyoruz
             await fetch(scriptUrl, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: "send_code", payload: { email: email } })
+                body: JSON.stringify({ action: "send_code", payload: { email: inputEmail } })
             });
             
-            // İstek başarıyla fırlatıldıktan sonra arayüze geçiş yapıyoruz
             statusMessage.style.color = "green";
             statusMessage.innerText = "Kod gönderildi! Lütfen gelen/spam kutunuzu kontrol edin.";
             emailForm.classList.add('hidden');
@@ -96,11 +104,11 @@
             
         } catch (error) {
             statusMessage.style.color = "red";
-            statusMessage.innerText = "Bir hata oluştu, lütfen izinleri kontrol edin.";
+            statusMessage.innerText = "Bir hata oluştu, lütfen tekrar deneyin.";
         }
     });
 
-    // KOD DOĞRULAMA tetikleyicisi
+    // KOD DOĞRULAMA
     otpForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const code = otpInput.value;
@@ -109,7 +117,6 @@
         statusMessage.innerText = "Kod doğrulanıyor...";
 
         try {
-            // Doğrulama kontrolü için Google'dan yanıt bekleyen açık istek
             const response = await fetch(scriptUrl, {
                 method: 'POST',
                 body: JSON.stringify({ action: "verify_code", payload: { code: code } })
@@ -119,18 +126,18 @@
             
             if(resultText.includes("ONAYLANDI")) {
                 statusMessage.style.color = "green";
-                statusMessage.innerText = "🎉 Giriş Başarılı! Sisteme yönlendiriliyorsunuz...";
+                statusMessage.innerText = "🎉 Giriş Başarılı! Hoş geldiniz.";
                 otpForm.classList.add('hidden');
             } else if(resultText.includes("HATALI")) {
                 statusMessage.style.color = "red";
-                statusMessage.innerText = "❌ Hatalı veya süresi geçmiş kod!";
+                statusMessage.innerText = "❌ Hatalı kod girdiniz!";
             } else {
                 statusMessage.style.color = "red";
-                statusMessage.innerText = "❌ Sistemde aktif kod bulunamadı. Yeniden isteyin.";
+                statusMessage.innerText = "❌ Süresi geçmiş veya geçersiz işlem.";
             }
         } catch (error) {
             statusMessage.style.color = "red";
-            statusMessage.innerText = "Doğrulama esnasında bir bağlantı hatası oluştu.";
+            statusMessage.innerText = "Doğrulama esnasında bir hata oluştu.";
         }
     });
 </script>

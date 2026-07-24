@@ -504,6 +504,59 @@
         .numpad-btn.success-btn { background: #dcfce7; color: var(--success); }
         .numpad-btn.close-btn { background: #f8fafc; color: #64748b; font-size: 0.85rem; }
 
+
+        /* KATEGORİ YÖNETİMİ */
+        .category-manager-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .category-column {
+            border: 1px solid #d8e2e7;
+            border-radius: 6px;
+            background: #f8fafb;
+            overflow: hidden;
+        }
+        .category-column-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 10px 12px;
+            border-bottom: 1px solid #d8e2e7;
+            background: #edf3f6;
+            color: #315463;
+            font-size: .82rem;
+            font-weight: 800;
+        }
+        .category-column-head small { color: #71858f; font-weight: 600; }
+        .category-manager-list { margin: 0; padding: 0; }
+        .category-manager-item {
+            display: block;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e1e8ec;
+            background: #fff;
+        }
+        .category-manager-item:last-child { border-bottom: 0; }
+        .category-item-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .category-item-main { min-width: 0; }
+        .category-item-main strong { display: block; color: #244957; }
+        .category-item-main small {
+            display: block;
+            margin-top: 3px;
+            color: #71858f;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .category-empty { padding: 18px 12px; text-align: center; color: #7c9099; font-size: .82rem; }
+        .category-form-note { margin: -2px 0 2px; color: #71858f; font-size: .75rem; }
+
         /* BORÇ TİPİ VE FİLTRE STİLLERİ */
         .debt-filter-bar {
             display: flex;
@@ -1005,6 +1058,7 @@
             #transaction-list { overflow-x: auto; }
             #transaction-list > li { min-width: 790px; }
             table { min-width: 760px; }
+            .category-manager-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 520px) {
@@ -1031,7 +1085,7 @@
 <button class="top-action primary" onclick="quickOpenTab('tab-transactions','t-desc')" type="button">⊕ Yeni İşlem</button>
 <button class="top-action" onclick="quickOpenTab('tab-accounts','acc-name')" type="button">▣ Yeni Hesap</button>
 <button aria-label="Hesap listesini aç" class="top-icon-button mobile-only" onclick="toggleAccountRail()" type="button">₺</button>
-<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v1.1.3</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
+<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.0.1</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
 </div>
 </header><aside class="app-sidebar" id="app-sidebar">
 <div class="sidebar-budget-card">
@@ -1041,7 +1095,7 @@
 </div>
 <nav aria-label="Ana menü" class="side-nav">
 <button class="side-link utility-link" onclick="scrollToOverview()" type="button"><span>▦</span> Genel Durum</button>
-<div class="side-nav-slot"><button class="tab-btn side-link" onclick="openTab('tab-accounts')">🏦 Hesaplar</button><button class="tab-btn active side-link" onclick="openTab('tab-transactions')">▤ İşlemler</button><button class="tab-btn side-link" onclick="openTab('tab-forecast')">▥ Bütçe Planlama</button><button class="tab-btn side-link" onclick="openTab('tab-invoices')">▧ Faturalar</button><button class="tab-btn side-link" onclick="openTab('tab-debts')">◇ Borç &amp; Alacak</button></div>
+<div class="side-nav-slot"><button class="tab-btn side-link" onclick="openTab('tab-accounts')">🏦 Hesaplar</button><button class="tab-btn active side-link" onclick="openTab('tab-transactions')">▤ İşlemler</button><button class="tab-btn side-link" onclick="openTab('tab-forecast')">▥ Bütçe Planlama</button><button class="tab-btn side-link" onclick="openTab('tab-invoices')">▧ Faturalar</button><button class="tab-btn side-link" onclick="openTab('tab-debts')">◇ Borç &amp; Alacak</button><button class="side-link utility-link" onclick="openCategoryModal()" type="button"><span>🏷</span> Kategoriler</button></div>
 </nav>
 <div class="sidebar-bottom">
 <button class="side-link utility-link" onclick="scrollToUpcoming()" type="button"><span>⌛</span> Yaklaşan İşlemler <b id="upcoming-count-badge">0</b></button>
@@ -1360,6 +1414,42 @@
 <div class="numpad-btn action-btn" onclick="numpadInput('/')">÷</div>
 </div>
 </div>
+<!-- MODAL: KATEGORİ YÖNETİMİ -->
+<div class="modal-backdrop" id="category-modal">
+<div class="modal-box" style="max-width:760px;">
+<h3>🏷️ Kategorileri Yönet</h3>
+<form id="category-form" onsubmit="saveCategory(event)" style="margin-bottom:10px;">
+<input id="cat-edit-index" type="hidden" value=""/>
+<input id="cat-edit-type" type="hidden" value=""/>
+<div class="flex-group">
+<select id="cat-type" required>
+<option value="expense">Gider Kategorisi</option>
+<option value="income">Gelir Kategorisi</option>
+</select>
+<input id="cat-name" placeholder="Kategori adı" required type="text"/>
+</div>
+<textarea id="cat-subcategories" placeholder="Alt kategoriler: Gıda, Temizlik, Kişisel Bakım"></textarea>
+<div class="category-form-note">Alt kategorileri virgül veya yeni satırla ayırabilirsin.</div>
+<div class="flex-group">
+<button class="submit-btn" id="cat-submit-btn" style="flex:2;" type="submit">Kategori Ekle</button>
+<button class="btn-danger" id="cat-cancel-btn" onclick="cancelCategoryEdit()" style="display:none; flex:1;" type="button">İptal</button>
+</div>
+</form>
+<div class="category-manager-grid">
+<section class="category-column">
+<div class="category-column-head"><span>📉 Gider Kategorileri</span><small id="expense-category-count">0</small></div>
+<div class="category-manager-list" id="expense-category-list"></div>
+</section>
+<section class="category-column">
+<div class="category-column-head"><span>📈 Gelir Kategorileri</span><small id="income-category-count">0</small></div>
+<div class="category-manager-list" id="income-category-list"></div>
+</section>
+</div>
+<div style="text-align:right; margin-top:15px;">
+<button class="btn-sm btn-eye" onclick="closeCategoryModal()" style="padding:8px 16px;" type="button">Kapat</button>
+</div>
+</div>
+</div>
 <!-- MODAL: BORÇ TİPLERİ YÖNETİMİ -->
 <div class="modal-backdrop" id="debt-type-modal">
 <div class="modal-box">
@@ -1432,7 +1522,7 @@
 </div>
 </div>
 <script>
-    const APP_VERSION = "2.0.0";
+    const APP_VERSION = "2.0.1";
     const LOCAL_STORAGE_KEY = "arasFinansData_v1";
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
@@ -1576,7 +1666,21 @@
         data.debts = Array.isArray(data.debts) ? data.debts : [];
         data.invoices = Array.isArray(data.invoices) ? data.invoices : [];
         data.forecasts = Array.isArray(data.forecasts) ? data.forecasts : [];
-        data.categories = data.categories && typeof data.categories === 'object' ? data.categories : defaultCategories;
+        data.categories = data.categories && typeof data.categories === 'object' ? data.categories : {};
+        ['expense', 'income'].forEach(type => {
+            const fallback = (defaultCategories[type] || []).map(category => ({
+                ...category,
+                subcategories: [...(category.subcategories || [])]
+            }));
+            data.categories[type] = Array.isArray(data.categories[type]) ? data.categories[type] : fallback;
+            data.categories[type] = data.categories[type].map(category => ({
+                id: category.id || generateId('cat'),
+                name: String(category.name || 'İsimsiz Kategori').trim() || 'İsimsiz Kategori',
+                subcategories: [...new Set((Array.isArray(category.subcategories) ? category.subcategories : [])
+                    .map(item => String(item || '').trim())
+                    .filter(Boolean))]
+            }));
+        });
         data.debtTypes = Array.isArray(data.debtTypes) && data.debtTypes.length ? data.debtTypes : defaultDebtTypes.map(x => ({...x}));
 
         data.accounts.forEach(acc => {
@@ -2491,6 +2595,153 @@
         const showSummary = visibilityState['filtered-summary'];
         document.getElementById('filtered-income').innerText = showSummary ? moneyText(fIncome) : '****** TL';
         document.getElementById('filtered-expense').innerText = showSummary ? moneyText(fExpense) : '****** TL';
+    }
+
+
+    // --- KATEGORİ YÖNETİMİ ---
+    function parseSubcategoryInput(value) {
+        return [...new Set(String(value || '')
+            .split(/[,;\n]+/)
+            .map(item => item.trim())
+            .filter(Boolean))];
+    }
+
+    function openCategoryModal() {
+        cancelCategoryEdit();
+        renderCategoryManager();
+        document.getElementById('category-modal').classList.add('open');
+        closeMobilePanels();
+    }
+
+    function closeCategoryModal() {
+        document.getElementById('category-modal').classList.remove('open');
+        cancelCategoryEdit();
+    }
+
+    function saveCategory(event) {
+        event.preventDefault();
+        const selectedType = document.getElementById('cat-type').value;
+        const editIndexValue = document.getElementById('cat-edit-index').value;
+        const editType = document.getElementById('cat-edit-type').value;
+        const type = editIndexValue !== '' && editType ? editType : selectedType;
+        const name = document.getElementById('cat-name').value.trim();
+        const subcategories = parseSubcategoryInput(document.getElementById('cat-subcategories').value);
+
+        if (!['expense', 'income'].includes(type) || !name) return;
+        const list = data.categories[type] || (data.categories[type] = []);
+        const editIndex = editIndexValue === '' ? -1 : Number(editIndexValue);
+        const duplicate = list.find((category, index) => index !== editIndex &&
+            category.name.toLocaleLowerCase('tr-TR') === name.toLocaleLowerCase('tr-TR'));
+        if (duplicate) {
+            alert('Bu işlem türünde aynı isimde başka bir kategori bulunuyor.');
+            return;
+        }
+
+        if (editIndex >= 0 && list[editIndex]) {
+            const oldName = list[editIndex].name;
+            list[editIndex] = {
+                ...list[editIndex],
+                id: list[editIndex].id || generateId('cat'),
+                name,
+                subcategories
+            };
+
+            // Kategori adı değiştiyse mevcut işlemlerdeki kategori adını da güncelle.
+            if (oldName !== name) {
+                data.transactions.forEach(transaction => {
+                    if (transaction.type === type && transaction.category === oldName) {
+                        transaction.category = name;
+                    }
+                });
+            }
+        } else {
+            list.push({ id: generateId('cat'), name, subcategories });
+        }
+
+        cancelCategoryEdit();
+        renderCategoryManager();
+        updateUI();
+    }
+
+    function editCategory(type, index) {
+        const category = data.categories[type]?.[index];
+        if (!category) return;
+        document.getElementById('cat-type').value = type;
+        document.getElementById('cat-type').disabled = true;
+        document.getElementById('cat-edit-index').value = String(index);
+        document.getElementById('cat-edit-type').value = type;
+        document.getElementById('cat-name').value = category.name;
+        document.getElementById('cat-subcategories').value = (category.subcategories || []).join(', ');
+        document.getElementById('cat-submit-btn').textContent = 'Kategoriyi Güncelle';
+        document.getElementById('cat-cancel-btn').style.display = 'inline-block';
+        document.getElementById('cat-name').focus();
+    }
+
+    function cancelCategoryEdit() {
+        const form = document.getElementById('category-form');
+        if (form) form.reset();
+        const editIndex = document.getElementById('cat-edit-index');
+        if (editIndex) editIndex.value = '';
+        const editType = document.getElementById('cat-edit-type');
+        if (editType) editType.value = '';
+        const typeSelect = document.getElementById('cat-type');
+        if (typeSelect) typeSelect.disabled = false;
+        const submitButton = document.getElementById('cat-submit-btn');
+        if (submitButton) submitButton.textContent = 'Kategori Ekle';
+        const cancelButton = document.getElementById('cat-cancel-btn');
+        if (cancelButton) cancelButton.style.display = 'none';
+    }
+
+    function deleteCategory(type, index) {
+        const category = data.categories[type]?.[index];
+        if (!category) return;
+        const usageCount = data.transactions.filter(transaction =>
+            transaction.type === type && transaction.category === category.name).length;
+        const usageText = usageCount
+            ? ` Bu kategori ${usageCount} geçmiş işlemde kullanılıyor; geçmiş kayıtlar korunacak ancak yeni işlemlerde seçilemeyecek.`
+            : '';
+        if (!confirm(`“${category.name}” kategorisini silmek istediğine emin misin?${usageText}`)) return;
+
+        data.categories[type].splice(index, 1);
+        cancelCategoryEdit();
+        renderCategoryManager();
+        updateUI();
+    }
+
+    function renderCategoryManager() {
+        ['expense', 'income'].forEach(type => {
+            const listElement = document.getElementById(`${type}-category-list`);
+            const countElement = document.getElementById(`${type}-category-count`);
+            if (!listElement || !countElement) return;
+            const categories = data.categories[type] || [];
+            countElement.textContent = `${categories.length} kategori`;
+            listElement.innerHTML = '';
+
+            if (!categories.length) {
+                listElement.innerHTML = '<div class="category-empty">Henüz kategori eklenmemiş.</div>';
+                return;
+            }
+
+            categories.forEach((category, index) => {
+                const item = document.createElement('div');
+                item.className = 'category-manager-item';
+                const subcategoryText = (category.subcategories || []).length
+                    ? category.subcategories.join(' · ')
+                    : 'Alt kategori yok';
+                item.innerHTML = `
+                    <div class="category-item-row">
+                        <div class="category-item-main">
+                            <strong>${escapeHtml(category.name)}</strong>
+                            <small>${escapeHtml(subcategoryText)}</small>
+                        </div>
+                        <div class="actions">
+                            <button class="btn-sm btn-warning" onclick="editCategory('${type}', ${index})" type="button">Düzenle</button>
+                            <button class="btn-sm btn-danger" onclick="deleteCategory('${type}', ${index})" type="button">Sil</button>
+                        </div>
+                    </div>`;
+                listElement.appendChild(item);
+            });
+        });
     }
 
     // --- BORÇ & ALACAK VE DİNAMİK BORÇ TİPLERİ ---

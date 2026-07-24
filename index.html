@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Aras Finans v2.0 — Kişisel Finans Yönetimi</title>
+<title>Aras Finans v2.1.0 — Kişisel Finans Yönetimi</title>
 <style>
         :root {
             --primary: #4f46e5;
@@ -167,11 +167,26 @@
             padding: 10px 12px;
             border-radius: 6px;
             border: 1px solid #fed7aa;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 10px;
             align-items: center;
             font-size: 0.9rem;
         }
+        .upcoming-select-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #9a3412;
+            font-size: .76rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .upcoming-select-box input { width: 17px; height: 17px; margin: 0; accent-color: var(--warning); }
+        .upcoming-item-main { min-width: 0; }
+        .upcoming-item-side { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+        .upcoming-selection-actions { display: flex; justify-content: flex-end; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
 
         .upcoming-item.overdue {
             border-color: #fecaca;
@@ -211,7 +226,7 @@
         }
         .upcoming-total-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(150px, 1fr));
+            grid-template-columns: repeat(4, minmax(145px, 1fr));
             gap: 8px;
             margin-top: 10px;
         }
@@ -235,6 +250,7 @@
         .upcoming-total-card.payment { background: #fff1f2; border-color: #fecdd3; color: var(--danger); }
         .upcoming-total-card.income { background: #f0fdf4; border-color: #bbf7d0; color: var(--success); }
         .upcoming-total-card.net { background: #eef2ff; border-color: #c7d2fe; color: var(--primary); }
+        .upcoming-total-card.selected { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
         .upcoming-empty {
             padding: 18px;
             text-align: center;
@@ -554,6 +570,17 @@
             line-height: 1.35;
             overflow-wrap: anywhere;
         }
+        .category-tree-prefix { color: #8aa0aa; font-weight: 800; margin-right: 5px; }
+        .category-parent-badge {
+            display: inline-flex;
+            margin-top: 4px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #edf6f8;
+            color: #397084;
+            font-size: .68rem;
+            font-weight: 700;
+        }
         .category-empty { padding: 18px 12px; text-align: center; color: #7c9099; font-size: .82rem; }
         .category-form-note { margin: -2px 0 2px; color: #71858f; font-size: .75rem; }
 
@@ -636,7 +663,8 @@
             .tab-menu { display: grid; grid-template-columns: 1fr 1fr; }
             .tab-btn { padding: 10px 8px; font-size: 0.86rem; }
             .filter-summary { align-items: flex-start; flex-direction: column; gap: 10px; }
-            .upcoming-item { align-items: flex-start; flex-direction: column; gap: 6px; }
+            .upcoming-item { grid-template-columns: auto minmax(0,1fr); align-items: flex-start; }
+            .upcoming-item-side { grid-column: 1 / -1; width: 100%; justify-content: space-between; }
             .upcoming-total-grid { grid-template-columns: 1fr; }
             .upcoming-summary-header { align-items: flex-start; }
             .actions { justify-content: flex-start; margin-top: 7px; }
@@ -1072,7 +1100,7 @@
 <div class="app-shell"><header class="app-topbar">
 <div class="topbar-left">
 <button aria-label="Menüyü aç" class="top-icon-button mobile-only" onclick="toggleSidebar()" type="button">☰</button>
-<div class="app-brand" onclick="scrollToOverview()" role="button" tabindex="0">
+<div class="app-brand" onclick="openHome()" role="button" tabindex="0" title="Ana sayfaya dön">
 <span class="brand-mark">AF</span>
 <span><strong>ARAS</strong> FİNANS</span>
 </div>
@@ -1085,7 +1113,7 @@
 <button class="top-action primary" onclick="quickOpenTab('tab-transactions','t-desc')" type="button">⊕ Yeni İşlem</button>
 <button class="top-action" onclick="quickOpenTab('tab-accounts','acc-name')" type="button">▣ Yeni Hesap</button>
 <button aria-label="Hesap listesini aç" class="top-icon-button mobile-only" onclick="toggleAccountRail()" type="button">₺</button>
-<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.0.1</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
+<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.1.0</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
 </div>
 </header><aside class="app-sidebar" id="app-sidebar">
 <div class="sidebar-budget-card">
@@ -1094,7 +1122,7 @@
 <strong id="sidebar-net-total">****** TL</strong>
 </div>
 <nav aria-label="Ana menü" class="side-nav">
-<button class="side-link utility-link" onclick="scrollToOverview()" type="button"><span>▦</span> Genel Durum</button>
+<button class="side-link utility-link" id="home-nav-btn" onclick="openHome()" type="button"><span>⌂</span> Ana Sayfa</button>
 <div class="side-nav-slot"><button class="tab-btn side-link" onclick="openTab('tab-accounts')">🏦 Hesaplar</button><button class="tab-btn active side-link" onclick="openTab('tab-transactions')">▤ İşlemler</button><button class="tab-btn side-link" onclick="openTab('tab-forecast')">▥ Bütçe Planlama</button><button class="tab-btn side-link" onclick="openTab('tab-invoices')">▧ Faturalar</button><button class="tab-btn side-link" onclick="openTab('tab-debts')">◇ Borç &amp; Alacak</button><button class="side-link utility-link" onclick="openCategoryModal()" type="button"><span>🏷</span> Kategoriler</button></div>
 </nav>
 <div class="sidebar-bottom">
@@ -1422,14 +1450,17 @@
 <input id="cat-edit-index" type="hidden" value=""/>
 <input id="cat-edit-type" type="hidden" value=""/>
 <div class="flex-group">
-<select id="cat-type" required>
+<select id="cat-type" onchange="refreshCategoryParentOptions()" required>
 <option value="expense">Gider Kategorisi</option>
 <option value="income">Gelir Kategorisi</option>
 </select>
 <input id="cat-name" placeholder="Kategori adı" required type="text"/>
 </div>
-<textarea id="cat-subcategories" placeholder="Alt kategoriler: Gıda, Temizlik, Kişisel Bakım"></textarea>
-<div class="category-form-note">Alt kategorileri virgül veya yeni satırla ayırabilirsin.</div>
+<select id="cat-parent">
+<option value="">Üst Kategori Yok — Ana Kategori</option>
+</select>
+<textarea id="cat-subcategories" placeholder="Serbest alt başlıklar: Gıda, Temizlik, Kişisel Bakım"></textarea>
+<div class="category-form-note">Mevcut bir kategoriyi başka bir kategorinin altına taşımak için “Üst Kategori” alanını kullan. Serbest alt başlıkları virgül veya yeni satırla ayırabilirsin.</div>
 <div class="flex-group">
 <button class="submit-btn" id="cat-submit-btn" style="flex:2;" type="submit">Kategori Ekle</button>
 <button class="btn-danger" id="cat-cancel-btn" onclick="cancelCategoryEdit()" style="display:none; flex:1;" type="button">İptal</button>
@@ -1522,7 +1553,7 @@
 </div>
 </div>
 <script>
-    const APP_VERSION = "2.0.1";
+    const APP_VERSION = "2.1.0";
     const LOCAL_STORAGE_KEY = "arasFinansData_v1";
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
@@ -1574,6 +1605,8 @@
     let activeDebtIndexForPayment = null;
     let selectedAccountId = '';
     let dataInitialized = false;
+    let selectedUpcomingKeys = new Set();
+    let visibleUpcomingPaymentKeys = [];
 
     const now = new Date();
     document.getElementById('t-date').value = now.toISOString().split('T')[0];
@@ -1676,10 +1709,15 @@
             data.categories[type] = data.categories[type].map(category => ({
                 id: category.id || generateId('cat'),
                 name: String(category.name || 'İsimsiz Kategori').trim() || 'İsimsiz Kategori',
+                parentId: String(category.parentId || ''),
                 subcategories: [...new Set((Array.isArray(category.subcategories) ? category.subcategories : [])
                     .map(item => String(item || '').trim())
                     .filter(Boolean))]
             }));
+            const validCategoryIds = new Set(data.categories[type].map(category => category.id));
+            data.categories[type].forEach(category => {
+                if (!validCategoryIds.has(category.parentId) || category.parentId === category.id) category.parentId = '';
+            });
         });
         data.debtTypes = Array.isArray(data.debtTypes) && data.debtTypes.length ? data.debtTypes : defaultDebtTypes.map(x => ({...x}));
 
@@ -1701,6 +1739,8 @@
             tx.desc = String(tx.desc || '');
             tx.category = String(tx.category || '');
             tx.subcategory = String(tx.subcategory || '');
+            tx.categoryId = String(tx.categoryId || (data.categories[tx.type] || []).find(category => category.name === tx.category)?.id || '');
+            tx.subcategoryCategoryId = String(tx.subcategoryCategoryId || (data.categories[tx.type] || []).find(category => category.name === tx.subcategory && category.parentId === tx.categoryId)?.id || '');
             tx.amount = Number(tx.amount) || 0;
             if (!tx.accountId && tx.account) tx.accountId = data.accounts.find(a => a.name === tx.account)?.id || '';
             if (!tx.targetAccountId && tx.targetAccount) tx.targetAccountId = data.accounts.find(a => a.name === tx.targetAccount)?.id || '';
@@ -2006,6 +2046,29 @@
         renderTransactions();
     }
 
+    function openHome() {
+        selectedAccountId = '';
+        const accountFilter = document.getElementById('f-filter-account');
+        if (accountFilter) accountFilter.value = '';
+        openTab('tab-transactions');
+        document.querySelectorAll('.tab-btn').forEach(button => button.classList.remove('active'));
+        document.getElementById('home-nav-btn')?.classList.add('active');
+        const overviewContent = document.getElementById('overview-content');
+        const arrow = document.getElementById('panel-arrow');
+        overviewContent?.classList.add('open');
+        if (arrow) arrow.textContent = '▲ Kapat';
+        const kicker = document.getElementById('workspace-kicker');
+        const title = document.getElementById('workspace-title');
+        const subtitle = document.getElementById('workspace-subtitle');
+        if (kicker) kicker.textContent = 'ANA SAYFA';
+        if (title) title.textContent = 'Finansal Genel Bakış';
+        if (subtitle) subtitle.textContent = 'Hesaplarınızı, gerçekleşen hareketleri ve yaklaşan ödemeleri tek ekranda takip edin.';
+        renderTransactions();
+        renderAccountRail();
+        document.getElementById('app-workspace')?.scrollTo({ top: 0, behavior: 'smooth' });
+        closeMobilePanels();
+    }
+
     function scrollToOverview() {
         const content = document.getElementById('overview-content');
         if (content && !content.classList.contains('open')) toggleOverviewPanel();
@@ -2123,6 +2186,7 @@
     function openTab(tabId, sourceEvent = null) {
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('home-nav-btn')?.classList.remove('active');
         const panel = document.getElementById(tabId);
         if (panel) panel.classList.add('active');
 
@@ -2279,6 +2343,67 @@
         closeMobilePanels();
     }
 
+    // --- KATEGORİ HİYERARŞİSİ YARDIMCILARI ---
+    function getCategoryHierarchyRows(type) {
+        const categories = data.categories[type] || [];
+        const rows = [];
+        const visited = new Set();
+        const walk = (parentId, depth) => {
+            categories.forEach((category, index) => {
+                if ((category.parentId || '') !== parentId || visited.has(category.id)) return;
+                visited.add(category.id);
+                rows.push({ category, index, depth });
+                walk(category.id, depth + 1);
+            });
+        };
+        walk('', 0);
+        categories.forEach((category, index) => {
+            if (!visited.has(category.id)) rows.push({ category, index, depth: 0 });
+        });
+        return rows;
+    }
+
+    function getCategoryDescendantIds(type, categoryId) {
+        const descendants = new Set();
+        const categories = data.categories[type] || [];
+        const collect = parentId => {
+            categories.forEach(category => {
+                if (category.parentId === parentId && !descendants.has(category.id)) {
+                    descendants.add(category.id);
+                    collect(category.id);
+                }
+            });
+        };
+        collect(categoryId);
+        return descendants;
+    }
+
+    function refreshCategoryParentOptions(typeOverride = '', editingIdOverride = '') {
+        const typeSelect = document.getElementById('cat-type');
+        const parentSelect = document.getElementById('cat-parent');
+        if (!typeSelect || !parentSelect) return;
+        const type = typeOverride || typeSelect.value || 'expense';
+        const editingIndex = document.getElementById('cat-edit-index')?.value;
+        const editingType = document.getElementById('cat-edit-type')?.value;
+        const editingCategory = editingIdOverride
+            ? (data.categories[type] || []).find(category => category.id === editingIdOverride)
+            : (editingIndex !== '' && editingType === type ? data.categories[type]?.[Number(editingIndex)] : null);
+        const editingId = editingCategory?.id || '';
+        const blocked = editingId ? getCategoryDescendantIds(type, editingId) : new Set();
+        if (editingId) blocked.add(editingId);
+        const previous = parentSelect.value;
+        parentSelect.innerHTML = '<option value="">Üst Kategori Yok — Ana Kategori</option>';
+        getCategoryHierarchyRows(type).forEach(({ category, depth }) => {
+            if (blocked.has(category.id)) return;
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = `${'↳ '.repeat(depth)}${category.name}`;
+            parentSelect.appendChild(option);
+        });
+        const desired = editingCategory?.parentId || previous;
+        if ([...parentSelect.options].some(option => option.value === desired)) parentSelect.value = desired;
+    }
+
     // --- FORM SELECT DOLDURMA ---
     function renderSelectOptions() {
         const accSelect = document.getElementById('t-account');
@@ -2330,11 +2455,14 @@
             targetAccSelect.removeAttribute('required');
 
             const previous = catSelect.value;
-            catSelect.innerHTML = '<option value="">Ana Kategori Seçin...</option>';
-            (data.categories[type] || []).forEach(cat => {
-                catSelect.innerHTML += `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.name)}</option>`;
+            catSelect.innerHTML = '<option value="">Kategori Seçin...</option>';
+            getCategoryHierarchyRows(type).forEach(({ category, depth }) => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = `${'↳ '.repeat(depth)}${category.name}`;
+                catSelect.appendChild(option);
             });
-            if ([...catSelect.options].some(o => o.value === previous)) catSelect.value = previous;
+            if ([...catSelect.options].some(option => option.value === previous)) catSelect.value = previous;
             onParentCategoryChange();
         }
     }
@@ -2345,14 +2473,26 @@
         const subCatSelect = document.getElementById('t-subcategory');
         const previous = subCatSelect.value;
 
-        subCatSelect.innerHTML = '<option value="">Alt Kategori Seçin...</option>';
+        subCatSelect.innerHTML = '<option value="">Alt Kategori / Başlık Seçin...</option>';
         if (type !== 'transfer' && catId) {
-            const cat = (data.categories[type] || []).find(c => c.id === catId);
-            (cat?.subcategories || []).forEach(sub => {
-                subCatSelect.innerHTML += `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`;
+            const categories = data.categories[type] || [];
+            const cat = categories.find(category => category.id === catId);
+            const childCategories = categories.filter(category => category.parentId === catId);
+            childCategories.forEach(child => {
+                const option = document.createElement('option');
+                option.value = `cat:${child.id}`;
+                option.textContent = `📁 ${child.name}`;
+                subCatSelect.appendChild(option);
+            });
+            (cat?.subcategories || []).forEach(subcategory => {
+                const option = document.createElement('option');
+                option.value = `text:${subcategory}`;
+                option.textContent = subcategory;
+                subCatSelect.appendChild(option);
             });
         }
-        if ([...subCatSelect.options].some(o => o.value === previous)) subCatSelect.value = previous;
+        const normalizedPrevious = previous && !previous.includes(':') ? `text:${previous}` : previous;
+        if ([...subCatSelect.options].some(option => option.value === normalizedPrevious)) subCatSelect.value = normalizedPrevious;
     }
 
     // --- İŞLEMLER ---
@@ -2366,12 +2506,20 @@
         const targetAccountId = document.getElementById('t-target-account').value;
         const date = document.getElementById('t-date').value;
 
-        let category = '', subcategory = '';
+        let category = '', subcategory = '', categoryId = '', subcategoryCategoryId = '';
         if (type !== 'transfer') {
-            const catId = document.getElementById('t-category').value;
-            const catObj = (data.categories[type] || []).find(c => c.id === catId);
+            categoryId = document.getElementById('t-category').value;
+            const catObj = (data.categories[type] || []).find(categoryItem => categoryItem.id === categoryId);
             category = catObj ? catObj.name : '';
-            subcategory = document.getElementById('t-subcategory').value;
+            const subValue = document.getElementById('t-subcategory').value;
+            if (subValue.startsWith('cat:')) {
+                subcategoryCategoryId = subValue.slice(4);
+                subcategory = (data.categories[type] || []).find(categoryItem => categoryItem.id === subcategoryCategoryId)?.name || '';
+            } else if (subValue.startsWith('text:')) {
+                subcategory = subValue.slice(5);
+            } else {
+                subcategory = subValue;
+            }
         }
 
         if (amount <= 0 || !accountId || !date || (type === 'transfer' && !targetAccountId)) return;
@@ -2389,6 +2537,8 @@
             type,
             category,
             subcategory,
+            categoryId,
+            subcategoryCategoryId,
             accountId,
             targetAccountId: type === 'transfer' ? targetAccountId : '',
             account: account?.name || '',
@@ -2449,10 +2599,15 @@
         onTransactionTypeOrCategoryChange();
 
         if (tx.type !== 'transfer') {
-            const catObj = (data.categories[tx.type] || []).find(c => c.name === tx.category);
+            const catObj = (data.categories[tx.type] || []).find(category => category.id === tx.categoryId)
+                || (data.categories[tx.type] || []).find(category => category.name === tx.category);
             if (catObj) document.getElementById('t-category').value = catObj.id;
             onParentCategoryChange();
-            document.getElementById('t-subcategory').value = tx.subcategory || '';
+            const subSelect = document.getElementById('t-subcategory');
+            const childCategory = (data.categories[tx.type] || []).find(category => category.id === tx.subcategoryCategoryId)
+                || (data.categories[tx.type] || []).find(category => category.name === tx.subcategory && category.parentId === catObj?.id);
+            const desiredSubValue = childCategory ? `cat:${childCategory.id}` : (tx.subcategory ? `text:${tx.subcategory}` : '');
+            if ([...subSelect.options].some(option => option.value === desiredSubValue)) subSelect.value = desiredSubValue;
         } else {
             document.getElementById('t-target-account').value = tx.targetAccountId || getAccountByRef('', tx.targetAccount)?.id || '';
         }
@@ -2498,6 +2653,17 @@
         updateWorkspaceHeader('tab-transactions');
     }
 
+    function getTransactionDisplayTitle(transaction) {
+        const description = String(transaction?.desc || '').trim();
+        if (description) return description;
+        const subcategory = String(transaction?.subcategory || '').trim();
+        if (subcategory) return subcategory;
+        const category = String(transaction?.category || '').trim();
+        if (category) return category;
+        if (transaction?.type === 'transfer') return 'Hesaplar Arası Transfer';
+        return transaction?.type === 'income' ? 'Gelir İşlemi' : 'Gider İşlemi';
+    }
+
     function renderTransactions() {
         const list = document.getElementById('transaction-list');
         list.innerHTML = '';
@@ -2513,7 +2679,8 @@
         const today = getTodayStart();
         let filtered = data.transactions.filter(t => {
             if (accFilter && t.accountId !== accFilter && t.targetAccountId !== accFilter) return false;
-            if (searchFilter && !String(t.desc || '').toLocaleLowerCase('tr-TR').includes(searchFilter)) return false;
+            const searchableText = [getTransactionDisplayTitle(t), t.category, t.subcategory, getAccountName(t.accountId, t.account), getAccountName(t.targetAccountId, t.targetAccount)].join(' ').toLocaleLowerCase('tr-TR');
+            if (searchFilter && !searchableText.includes(searchFilter)) return false;
             const tDate = parseLocalDate(t.date);
             if (!tDate) return timeFilter === 'all';
             if (timeFilter === 'today') return tDate.getTime() === today.getTime();
@@ -2570,7 +2737,7 @@
             li.className = `transaction-item ${tx.type} ${tx.isPending ? 'pending' : ''}`;
             li.innerHTML = `
                 <div class="ledger-main">
-                    <strong>${escapeHtml(tx.desc || 'Açıklamasız işlem')} ${tx.isPending ? '<span class="pending-badge">Gelecek</span>' : ''}</strong>
+                    <strong>${escapeHtml(getTransactionDisplayTitle(tx))} ${tx.isPending ? '<span class="pending-badge">Gelecek</span>' : ''}</strong>
                     <span class="sub-info">${escapeHtml(tx.category || (tx.type === 'transfer' ? 'Hesaplar arası transfer' : 'Kategorisiz'))}${tx.subcategory ? ' · ' + escapeHtml(tx.subcategory) : ''} · ${escapeHtml(accountDescription)}</span>
                 </div>
                 <div class="ledger-kind ${kindClass}">${escapeHtml(kindText)}</div>
@@ -2609,6 +2776,7 @@
     function openCategoryModal() {
         cancelCategoryEdit();
         renderCategoryManager();
+        refreshCategoryParentOptions();
         document.getElementById('category-modal').classList.add('open');
         closeMobilePanels();
     }
@@ -2625,11 +2793,17 @@
         const editType = document.getElementById('cat-edit-type').value;
         const type = editIndexValue !== '' && editType ? editType : selectedType;
         const name = document.getElementById('cat-name').value.trim();
+        const parentId = document.getElementById('cat-parent').value;
         const subcategories = parseSubcategoryInput(document.getElementById('cat-subcategories').value);
 
         if (!['expense', 'income'].includes(type) || !name) return;
         const list = data.categories[type] || (data.categories[type] = []);
         const editIndex = editIndexValue === '' ? -1 : Number(editIndexValue);
+        const current = editIndex >= 0 ? list[editIndex] : null;
+        if (current && (parentId === current.id || getCategoryDescendantIds(type, current.id).has(parentId))) {
+            alert('Bir kategori kendisinin veya kendi alt kategorisinin altına taşınamaz.');
+            return;
+        }
         const duplicate = list.find((category, index) => index !== editIndex &&
             category.name.toLocaleLowerCase('tr-TR') === name.toLocaleLowerCase('tr-TR'));
         if (duplicate) {
@@ -2637,25 +2811,25 @@
             return;
         }
 
-        if (editIndex >= 0 && list[editIndex]) {
-            const oldName = list[editIndex].name;
+        if (current) {
+            const oldName = current.name;
             list[editIndex] = {
-                ...list[editIndex],
-                id: list[editIndex].id || generateId('cat'),
+                ...current,
+                id: current.id || generateId('cat'),
                 name,
+                parentId,
                 subcategories
             };
-
-            // Kategori adı değiştiyse mevcut işlemlerdeki kategori adını da güncelle.
-            if (oldName !== name) {
-                data.transactions.forEach(transaction => {
-                    if (transaction.type === type && transaction.category === oldName) {
-                        transaction.category = name;
-                    }
-                });
-            }
+            data.transactions.forEach(transaction => {
+                if (transaction.type !== type) return;
+                if (transaction.categoryId === current.id || (!transaction.categoryId && transaction.category === oldName)) {
+                    transaction.categoryId = current.id;
+                    transaction.category = name;
+                }
+                if (transaction.subcategoryCategoryId === current.id) transaction.subcategory = name;
+            });
         } else {
-            list.push({ id: generateId('cat'), name, subcategories });
+            list.push({ id: generateId('cat'), name, parentId, subcategories });
         }
 
         cancelCategoryEdit();
@@ -2672,7 +2846,9 @@
         document.getElementById('cat-edit-type').value = type;
         document.getElementById('cat-name').value = category.name;
         document.getElementById('cat-subcategories').value = (category.subcategories || []).join(', ');
-        document.getElementById('cat-submit-btn').textContent = 'Kategoriyi Güncelle';
+        refreshCategoryParentOptions(type, category.id);
+        document.getElementById('cat-parent').value = category.parentId || '';
+        document.getElementById('cat-submit-btn').textContent = 'Kategoriyi Güncelle / Taşı';
         document.getElementById('cat-cancel-btn').style.display = 'inline-block';
         document.getElementById('cat-name').focus();
     }
@@ -2690,18 +2866,26 @@
         if (submitButton) submitButton.textContent = 'Kategori Ekle';
         const cancelButton = document.getElementById('cat-cancel-btn');
         if (cancelButton) cancelButton.style.display = 'none';
+        refreshCategoryParentOptions();
     }
 
     function deleteCategory(type, index) {
         const category = data.categories[type]?.[index];
         if (!category) return;
         const usageCount = data.transactions.filter(transaction =>
-            transaction.type === type && transaction.category === category.name).length;
-        const usageText = usageCount
-            ? ` Bu kategori ${usageCount} geçmiş işlemde kullanılıyor; geçmiş kayıtlar korunacak ancak yeni işlemlerde seçilemeyecek.`
-            : '';
-        if (!confirm(`“${category.name}” kategorisini silmek istediğine emin misin?${usageText}`)) return;
+            transaction.type === type && (transaction.categoryId === category.id || transaction.subcategoryCategoryId === category.id || transaction.category === category.name || transaction.subcategory === category.name)).length;
+        const childCount = (data.categories[type] || []).filter(item => item.parentId === category.id).length;
+        const usageText = usageCount ? ` Bu kategori ${usageCount} geçmiş işlemde kullanılıyor; işlem adları korunacak.` : '';
+        const childText = childCount ? ` Altındaki ${childCount} kategori ana kategori seviyesine taşınacak.` : '';
+        if (!confirm(`“${category.name}” kategorisini silmek istediğine emin misin?${usageText}${childText}`)) return;
 
+        (data.categories[type] || []).forEach(item => {
+            if (item.parentId === category.id) item.parentId = '';
+        });
+        data.transactions.forEach(transaction => {
+            if (transaction.categoryId === category.id) transaction.categoryId = '';
+            if (transaction.subcategoryCategoryId === category.id) transaction.subcategoryCategoryId = '';
+        });
         data.categories[type].splice(index, 1);
         cancelCategoryEdit();
         renderCategoryManager();
@@ -2722,26 +2906,27 @@
                 return;
             }
 
-            categories.forEach((category, index) => {
+            getCategoryHierarchyRows(type).forEach(({ category, index, depth }) => {
                 const item = document.createElement('div');
                 item.className = 'category-manager-item';
-                const subcategoryText = (category.subcategories || []).length
-                    ? category.subcategories.join(' · ')
-                    : 'Alt kategori yok';
+                const parent = categories.find(parentCategory => parentCategory.id === category.parentId);
+                const subcategoryText = (category.subcategories || []).length ? category.subcategories.join(' · ') : 'Serbest alt başlık yok';
                 item.innerHTML = `
-                    <div class="category-item-row">
+                    <div class="category-item-row" style="padding-left:${Math.min(depth, 6) * 16}px">
                         <div class="category-item-main">
-                            <strong>${escapeHtml(category.name)}</strong>
+                            <strong><span class="category-tree-prefix">${depth ? '↳' : '●'}</span>${escapeHtml(category.name)}</strong>
+                            ${parent ? `<span class="category-parent-badge">Üst: ${escapeHtml(parent.name)}</span>` : '<span class="category-parent-badge">Ana kategori</span>'}
                             <small>${escapeHtml(subcategoryText)}</small>
                         </div>
                         <div class="actions">
-                            <button class="btn-sm btn-warning" onclick="editCategory('${type}', ${index})" type="button">Düzenle</button>
+                            <button class="btn-sm btn-warning" onclick="editCategory('${type}', ${index})" type="button">Düzenle / Taşı</button>
                             <button class="btn-sm btn-danger" onclick="deleteCategory('${type}', ${index})" type="button">Sil</button>
                         </div>
                     </div>`;
                 listElement.appendChild(item);
             });
         });
+        refreshCategoryParentOptions();
     }
 
     // --- BORÇ & ALACAK VE DİNAMİK BORÇ TİPLERİ ---
@@ -3343,6 +3528,7 @@
     function onUpcomingTimeFilterChange() {
         const value = document.getElementById('upcoming-time-filter').value;
         document.getElementById('upcoming-custom-dates').style.display = value === 'custom' ? 'flex' : 'none';
+        selectedUpcomingKeys.clear();
         renderUpcoming();
     }
 
@@ -3350,7 +3536,6 @@
         const filter = document.getElementById('upcoming-time-filter')?.value || 'month';
         const today = getTodayStart();
         let start = null, end = null;
-
         if (filter === 'today') {
             start = new Date(today); end = new Date(today);
         } else if (filter === 'week') {
@@ -3378,6 +3563,85 @@
         return { label: `${diff} gün sonra`, className: '' };
     }
 
+    function buildUpcomingItems() {
+        const items = [];
+        data.invoices.filter(invoice => !invoice.paid && invoice.date).forEach(invoice => items.push({
+            key: `invoice:${invoice.id}`, sourceId: invoice.id, type: 'invoice', flow: 'out', date: invoice.date,
+            title: `Fatura: ${invoice.name}`, amount: Number(invoice.amount || 0), hidden: invoice.hidden !== false, icon: '🧾'
+        }));
+        data.debts.filter(debt => debt.status === 'active' && debt.dueDate).forEach(debt => {
+            const paid = (debt.payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+            const remaining = Math.max(0, Number(debt.amount || 0) - paid);
+            if (remaining <= 0) return;
+            items.push({
+                key: `debt:${debt.id}`, sourceId: debt.id, type: 'debt', flow: debt.direction === 'debt' ? 'out' : 'in', date: debt.dueDate,
+                title: `${debt.direction === 'debt' ? 'Borç Ödemesi' : 'Alacak Tahsili'}: ${debt.person}`,
+                amount: remaining, hidden: debt.hidden !== false, icon: '🤝'
+            });
+        });
+        data.transactions.filter(transaction => transaction.isPending && transaction.date).forEach(transaction => items.push({
+            key: `transaction:${transaction.id}`, sourceId: transaction.id, type: 'transaction',
+            flow: transaction.type === 'income' ? 'in' : transaction.type === 'expense' ? 'out' : 'neutral', date: transaction.date,
+            title: `Bekleyen ${transaction.type === 'income' ? 'Gelir' : transaction.type === 'expense' ? 'Gider' : 'Transfer'}: ${getTransactionDisplayTitle(transaction)}`,
+            amount: Number(transaction.amount || 0), hidden: transaction.hidden !== false, icon: '⏳'
+        }));
+        return items;
+    }
+
+    function updateUpcomingWeekBadge(items) {
+        const today = getTodayStart();
+        const weekEnd = new Date(today);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const oneWeekPaymentCount = items.filter(item => {
+            if (item.flow !== 'out') return false;
+            const date = parseLocalDate(item.date);
+            return date && date >= today && date <= weekEnd;
+        }).length;
+        const badge = document.getElementById('upcoming-count-badge');
+        if (badge) {
+            badge.textContent = String(oneWeekPaymentCount);
+            badge.title = `Önümüzdeki 7 gün içinde ${oneWeekPaymentCount} ödeme`;
+        }
+    }
+
+    function toggleUpcomingSelection(key, checked) {
+        if (checked) selectedUpcomingKeys.add(key);
+        else selectedUpcomingKeys.delete(key);
+        renderUpcoming();
+    }
+
+    function selectAllVisibleUpcomingPayments() {
+        visibleUpcomingPaymentKeys.forEach(key => selectedUpcomingKeys.add(key));
+        renderUpcoming();
+    }
+
+    function clearUpcomingSelection() {
+        selectedUpcomingKeys.clear();
+        renderUpcoming();
+    }
+
+    function editUpcomingItem(type, sourceId) {
+        let index = -1;
+        let tabId = '';
+        let formId = '';
+        if (type === 'invoice') {
+            index = data.invoices.findIndex(invoice => invoice.id === sourceId);
+            tabId = 'tab-invoices'; formId = 'invoice-form';
+            if (index >= 0) editInvoice(index);
+        } else if (type === 'debt') {
+            index = data.debts.findIndex(debt => debt.id === sourceId);
+            tabId = 'tab-debts'; formId = 'debt-form';
+            if (index >= 0) editDebt(index);
+        } else if (type === 'transaction') {
+            index = data.transactions.findIndex(transaction => transaction.id === sourceId);
+            tabId = 'tab-transactions'; formId = 'transaction-form';
+            if (index >= 0) editTransaction(index);
+        }
+        if (index < 0) return;
+        openTab(tabId);
+        requestAnimationFrame(() => document.getElementById(formId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+
     function renderUpcoming() {
         const list = document.getElementById('upcoming-list');
         const summary = document.getElementById('upcoming-summary');
@@ -3386,30 +3650,10 @@
 
         const { start, end } = getUpcomingDateRange();
         const typeFilter = document.getElementById('upcoming-type-filter')?.value || 'all';
-        const items = [];
+        const allItems = buildUpcomingItems();
+        updateUpcomingWeekBadge(allItems);
 
-        data.invoices.filter(i => !i.paid && i.date).forEach(inv => items.push({
-            type: 'invoice', flow: 'out', date: inv.date, title: `Fatura: ${inv.name}`, amount: inv.amount, hidden: inv.hidden !== false, icon: '🧾'
-        }));
-
-        data.debts.filter(d => d.status === 'active' && d.dueDate).forEach(d => {
-            const paid = (d.payments || []).reduce((s, p) => s + p.amount, 0);
-            const remaining = Math.max(0, d.amount - paid);
-            if (remaining <= 0) return;
-            items.push({
-                type: 'debt', flow: d.direction === 'debt' ? 'out' : 'in', date: d.dueDate,
-                title: `${d.direction === 'debt' ? 'Borç Ödemesi' : 'Alacak Tahsili'}: ${d.person}`,
-                amount: remaining, hidden: d.hidden !== false, icon: '🤝'
-            });
-        });
-
-        data.transactions.filter(t => t.isPending && t.date).forEach(t => items.push({
-            type: 'transaction', flow: t.type === 'income' ? 'in' : t.type === 'expense' ? 'out' : 'neutral', date: t.date,
-            title: `Bekleyen ${t.type === 'income' ? 'Gelir' : t.type === 'expense' ? 'Gider' : 'Transfer'}: ${t.desc || 'Açıklamasız işlem'}`,
-            amount: t.amount, hidden: t.hidden !== false, icon: '⏳'
-        }));
-
-        const filtered = items.filter(item => {
+        const filtered = allItems.filter(item => {
             if (typeFilter !== 'all' && item.type !== typeFilter) return false;
             const date = parseLocalDate(item.date);
             if (!date) return false;
@@ -3418,43 +3662,39 @@
             return true;
         }).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
+        visibleUpcomingPaymentKeys = filtered.filter(item => item.flow === 'out').map(item => item.key);
+        const visibleKeySet = new Set(visibleUpcomingPaymentKeys);
+        [...selectedUpcomingKeys].forEach(key => {
+            if (!visibleKeySet.has(key)) selectedUpcomingKeys.delete(key);
+        });
+
         const rangeText = start || end
             ? `${start ? formatDateInput(start) : 'Başlangıç yok'} – ${end ? formatDateInput(end) : 'Bitiş yok'}`
             : 'Tüm tarihler';
-
-        const countBadge = document.getElementById('upcoming-count-badge');
-        if (countBadge) countBadge.textContent = String(filtered.length);
-
-        const totalOutgoing = filtered
-            .filter(item => item.flow === 'out')
-            .reduce((sum, item) => sum + Number(item.amount || 0), 0);
-        const totalIncoming = filtered
-            .filter(item => item.flow === 'in')
-            .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+        const totalOutgoing = filtered.filter(item => item.flow === 'out').reduce((sum, item) => sum + item.amount, 0);
+        const totalIncoming = filtered.filter(item => item.flow === 'in').reduce((sum, item) => sum + item.amount, 0);
+        const selectedPayments = filtered.filter(item => item.flow === 'out' && selectedUpcomingKeys.has(item.key));
+        const selectedTotal = selectedPayments.reduce((sum, item) => sum + item.amount, 0);
         const netCashEffect = totalIncoming - totalOutgoing;
         const showUpcomingTotals = visibilityState['upcoming-summary'];
-        const moneyOrHidden = value => showUpcomingTotals ? `${value.toFixed(2)} TL` : '****** TL';
+        const moneyOrHidden = value => showUpcomingTotals ? moneyText(value) : '****** TL';
 
         summary.innerHTML = `
             <div class="upcoming-summary-header">
-                <span>${escapeHtml(rangeText)} aralığında ${filtered.length} kayıt gösteriliyor.</span>
+                <span>${escapeHtml(rangeText)} aralığında ${filtered.length} kayıt; bunların ${visibleUpcomingPaymentKeys.length} tanesi ödeme.</span>
                 <button type="button" class="btn-sm btn-eye" onclick="toggleCardVisibility('upcoming-summary')">
                     ${showUpcomingTotals ? '🙈 Toplamları Gizle' : '👁️ Toplamları Göster'}
                 </button>
             </div>
             <div class="upcoming-total-grid">
-                <div class="upcoming-total-card payment">
-                    <span>Seçili Dönem Toplam Ödeme</span>
-                    <strong>${moneyOrHidden(totalOutgoing)}</strong>
-                </div>
-                <div class="upcoming-total-card income">
-                    <span>Seçili Dönem Beklenen Para Girişi</span>
-                    <strong>${moneyOrHidden(totalIncoming)}</strong>
-                </div>
-                <div class="upcoming-total-card net">
-                    <span>Net Nakit Etkisi</span>
-                    <strong>${showUpcomingTotals ? `${netCashEffect >= 0 ? '+' : ''}${netCashEffect.toFixed(2)} TL` : '****** TL'}</strong>
-                </div>
+                <div class="upcoming-total-card payment"><span>Seçili Dönem Toplam Ödeme</span><strong>${moneyOrHidden(totalOutgoing)}</strong></div>
+                <div class="upcoming-total-card selected"><span>İşaretlenen ${selectedPayments.length} Ödeme</span><strong>${moneyOrHidden(selectedTotal)}</strong></div>
+                <div class="upcoming-total-card income"><span>Beklenen Para Girişi</span><strong>${moneyOrHidden(totalIncoming)}</strong></div>
+                <div class="upcoming-total-card net"><span>Net Nakit Etkisi</span><strong>${showUpcomingTotals ? `${netCashEffect >= 0 ? '+' : ''}${moneyText(netCashEffect)}` : '****** TL'}</strong></div>
+            </div>
+            <div class="upcoming-selection-actions">
+                <button class="btn-sm btn-eye" onclick="selectAllVisibleUpcomingPayments()" type="button">☑ Görünen Ödemeleri Seç</button>
+                <button class="btn-sm btn-eye" onclick="clearUpcomingSelection()" type="button">Seçimi Temizle</button>
             </div>`;
 
         if (!filtered.length) {
@@ -3466,9 +3706,14 @@
             const dateInfo = describeUpcomingDate(item.date);
             const div = document.createElement('div');
             div.className = `upcoming-item ${dateInfo.className}`;
+            const selectable = item.flow === 'out';
             div.innerHTML = `
-                <span>${item.icon} <b>${escapeHtml(item.title)}</b><span class="sub-info">📅 ${escapeHtml(item.date)} · ${escapeHtml(dateInfo.label)}</span></span>
-                <strong>${item.hidden ? '****** TL' : item.amount.toFixed(2) + ' TL'}</strong>`;
+                ${selectable ? `<label class="upcoming-select-box"><input data-key="${escapeHtml(item.key)}" onchange="toggleUpcomingSelection(this.dataset.key, this.checked)" type="checkbox" ${selectedUpcomingKeys.has(item.key) ? 'checked' : ''}/><span>Seç</span></label>` : '<span></span>'}
+                <div class="upcoming-item-main"><b>${item.icon} ${escapeHtml(item.title)}</b><span class="sub-info">📅 ${escapeHtml(item.date)} · ${escapeHtml(dateInfo.label)}</span></div>
+                <div class="upcoming-item-side">
+                    <strong>${item.hidden ? '****** TL' : moneyText(item.amount)}</strong>
+                    <button class="btn-sm btn-warning" data-id="${escapeHtml(item.sourceId)}" data-type="${escapeHtml(item.type)}" onclick="editUpcomingItem(this.dataset.type, this.dataset.id)" type="button">Düzenle</button>
+                </div>`;
             list.appendChild(div);
         });
     }
@@ -3501,6 +3746,7 @@
         document.getElementById('t-date').value = formatDateInput(new Date());
         initVirtualNumpad();
         updateWorkspaceHeader('tab-transactions');
+        document.getElementById('home-nav-btn')?.classList.add('active');
         loadFromCloud();
     };
 </script>

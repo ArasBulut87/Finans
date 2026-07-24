@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Aras Finans v2.2.0 — Kişisel Finans Yönetimi</title>
+<title>Aras Finans v2.3.0 — Kişisel Finans Yönetimi</title>
 <style>
         :root {
             --primary: #4f46e5;
@@ -1096,7 +1096,7 @@
         }
 
 
-        /* v2.2.0 — Odaklanmış ekran, hesap özeti ve görünürlük davranışları */
+        /* v2.3.0 — Tek bakiye düğmesi ve yaklaşan işlemlerden bütçeye aktarma */
         .app-shell.rail-hidden {
             grid-template-columns: 218px minmax(0, 1fr);
             grid-template-areas:
@@ -1204,6 +1204,89 @@
             .account-focus-actions { justify-content: flex-start; }
         }
 
+
+
+        /* v2.3.0 — Tek global bakiye düğmesi */
+        .global-balance-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            min-width: 148px;
+        }
+        .global-balance-toggle.is-visible {
+            background: #fff7ed;
+            border-color: #fdba74;
+            color: #9a3412;
+        }
+
+        /* Yaklaşan işlemlerden bütçeye ekleme */
+        .forecast-import-panel {
+            margin: 0 0 16px;
+            padding: 14px;
+            border: 1px solid #bae6fd;
+            border-left: 4px solid var(--info);
+            border-radius: 10px;
+            background: #f0f9ff;
+        }
+        .forecast-import-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .forecast-import-head strong { display: block; color: #075985; }
+        .forecast-import-head small { display: block; margin-top: 3px; color: #475569; }
+        .forecast-upcoming-picker {
+            max-height: 260px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            padding-right: 4px;
+        }
+        .forecast-upcoming-option {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border: 1px solid #dbeafe;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+        }
+        .forecast-upcoming-option:hover { border-color: #7dd3fc; }
+        .forecast-upcoming-option input { width: 17px; height: 17px; margin: 0; accent-color: var(--primary); }
+        .forecast-upcoming-option span { min-width: 0; }
+        .forecast-upcoming-option span b,
+        .forecast-upcoming-option span small { display: block; }
+        .forecast-upcoming-option span small { margin-top: 2px; color: #64748b; }
+        .forecast-upcoming-option > strong { white-space: nowrap; color: #0f172a; }
+        .forecast-import-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 760px) {
+            .top-action.global-balance-toggle {
+                display: inline-flex;
+                min-width: 38px;
+                width: 38px;
+                height: 36px;
+                padding: 0;
+            }
+            .global-balance-label { display: none; }
+            .forecast-import-head { flex-direction: column; }
+            .forecast-upcoming-option { grid-template-columns: auto minmax(0, 1fr); }
+            .forecast-upcoming-option > strong { grid-column: 2; }
+        }
+
 </style>
 </head>
 <body>
@@ -1222,8 +1305,9 @@
 <div class="topbar-actions">
 <button class="top-action primary" onclick="quickOpenTab('tab-transactions','t-desc')" type="button">⊕ Yeni İşlem</button>
 <button class="top-action" onclick="quickOpenTab('tab-accounts','acc-name')" type="button">▣ Yeni Hesap</button>
+<button class="top-action global-balance-toggle" id="global-balance-toggle" onclick="toggleOverviewVisibility(event)" title="Ekrandaki tüm bakiyeleri göster veya gizle" type="button"><span id="global-balance-icon">👁️</span><span class="global-balance-label" id="global-balance-label">Bakiyeleri Göster</span></button>
 <button aria-label="Hesap listesini aç" class="top-icon-button mobile-only" onclick="toggleAccountRail()" type="button">₺</button>
-<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.2.0</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
+<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.3.0</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
 </div>
 </header><aside class="app-sidebar" id="app-sidebar">
 <div class="sidebar-budget-card">
@@ -1240,7 +1324,6 @@
 </nav>
 <div class="sidebar-bottom">
 <button class="side-link utility-link" onclick="scrollToUpcoming()" type="button"><span>⌛</span> Yaklaşan İşlemler <b id="upcoming-count-badge">0</b></button>
-<button class="side-link utility-link" onclick="toggleOverviewVisibility(event)" type="button"><span>◉</span> Tutarları Göster/Gizle</button>
 <div class="sidebar-version">Yerel yedek + Google Sheets</div>
 </div>
 </aside><aside class="account-rail" id="account-rail">
@@ -1275,34 +1358,24 @@
 <span class="toggle-icon" id="panel-arrow">▼ Aç</span>
 </div>
 <div class="collapsible-content" id="overview-content">
-<div class="panel-actions">
-<button class="hide-toggle-btn" onclick="toggleOverviewVisibility(event)">
-<span id="overview-eye-icon">🙈</span> <span id="overview-eye-text">Tüm Bakiyeleri Gizle/Göster</span>
-</button>
-</div>
 <div class="summary-grid">
 <div class="card c-total">
-<button class="card-eye-btn" onclick="toggleCardVisibility('grand-total')">👁️</button>
 <span class="title">Toplam Net Varlık</span>
 <span data-val="0" id="grand-total">****** TL</span>
 </div>
 <div class="card c-income">
-<button class="card-eye-btn" onclick="toggleCardVisibility('total-income')">👁️</button>
 <span class="title">Gerçekleşen Gelir</span>
 <span data-val="0" id="total-income">****** TL</span>
 </div>
 <div class="card c-expense">
-<button class="card-eye-btn" onclick="toggleCardVisibility('total-expense')">👁️</button>
 <span class="title">Gerçekleşen Gider</span>
 <span data-val="0" id="total-expense">****** TL</span>
 </div>
 <div class="card c-receivable">
-<button class="card-eye-btn" onclick="toggleCardVisibility('total-debt-bal')">👁️</button>
 <span class="title">Borç / Alacak Dengesi</span>
 <span data-val="0" id="total-debt-bal">****** TL</span>
 </div>
 <div class="card c-invoice">
-<button class="card-eye-btn" onclick="toggleCardVisibility('total-invoice')">👁️</button>
 <span class="title">Ödenecek Faturalar</span>
 <span data-val="0" id="total-invoice">****** TL</span>
 </div>
@@ -1404,7 +1477,6 @@
 <span style="color:var(--success); margin-right:15px;">📈 Seçili Dönem Gelir: <span id="filtered-income">****** TL</span></span>
 <span style="color:var(--danger)">📉 Seçili Dönem Gider: <span id="filtered-expense">****** TL</span></span>
 </div>
-<button class="btn-sm btn-eye" onclick="toggleCardVisibility('filtered-summary')">👁️ Gizle/Göster</button>
 </div>
 </div>
 <ul id="transaction-list"></ul>
@@ -1415,6 +1487,17 @@
 <div class="month-selector-wrapper">
 <label for="forecast-month-filter">📅 Planlama Yapılacak Dönem:</label>
 <input id="forecast-month-filter" onchange="updateUI(false)" type="month"/>
+</div>
+<div class="forecast-import-panel">
+<div class="forecast-import-head">
+<div><strong>⌛ Yaklaşan İşlemlerden Bütçeye Ekle</strong><small>Fatura, borç/alacak veya bekleyen gelir-gider kayıtlarını seçerek ilgili aya bütçe planı olarak aktarın.</small></div>
+</div>
+<div class="forecast-upcoming-picker" id="forecast-upcoming-picker"></div>
+<div class="forecast-import-actions">
+<button class="btn-sm btn-eye" onclick="selectAllForecastUpcoming()" type="button">☑ Tümünü Seç</button>
+<button class="btn-sm btn-eye" onclick="clearForecastUpcomingSelection()" type="button">Seçimi Temizle</button>
+<button class="submit-btn" onclick="addSelectedUpcomingToForecast()" type="button">Seçilenleri Bütçeye Ekle</button>
+</div>
 </div>
 <form id="forecast-form" onsubmit="saveForecast(event)">
 <input id="f-edit-index" type="hidden" value=""/>
@@ -1703,7 +1786,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
 </div>
 </div>
 <script>
-    const APP_VERSION = "2.2.0";
+    const APP_VERSION = "2.3.0";
     const LOCAL_STORAGE_KEY = "arasFinansData_v1";
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
@@ -1756,6 +1839,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
     let selectedAccountId = '';
     let dataInitialized = false;
     let selectedUpcomingKeys = new Set();
+    let selectedForecastUpcomingKeys = new Set();
     let visibleUpcomingPaymentKeys = [];
     let pendingExpensePaymentTransactionId = '';
 
@@ -2128,40 +2212,42 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
     }
 
     function toggleOverviewVisibility(event) {
-        if(event) event.stopPropagation();
+        if (event) event.stopPropagation();
         visibilityState.global = !visibilityState.global;
-        ['grand-total', 'total-income', 'total-expense', 'total-debt-bal', 'total-invoice', 'filtered-summary', 'upcoming-summary'].forEach(k => {
-            visibilityState[k] = visibilityState.global;
+        ['grand-total', 'total-income', 'total-expense', 'total-debt-bal', 'total-invoice', 'filtered-summary', 'upcoming-summary'].forEach(key => {
+            visibilityState[key] = visibilityState.global;
         });
-        data.accounts.forEach(acc => acc.hidden = !visibilityState.global);
-        data.transactions.forEach(t => t.hidden = !visibilityState.global);
-        data.debts.forEach(d => d.hidden = !visibilityState.global);
-        data.invoices.forEach(i => i.hidden = !visibilityState.global);
+        ['accounts', 'transactions', 'debts', 'invoices', 'forecasts'].forEach(collection => {
+            (data[collection] || []).forEach(item => item.hidden = !visibilityState.global);
+        });
         updateUI(false);
     }
 
-    function toggleCardVisibility(cardKey) {
-        visibilityState[cardKey] = !visibilityState[cardKey];
-        updateUI(false);
-    }
-
-    function toggleItemVisibility(collectionName, index) {
-        if (data[collectionName] && data[collectionName][index]) {
-            data[collectionName][index].hidden = !data[collectionName][index].hidden;
-            updateUI(false);
+    function renderGlobalBalanceToggle() {
+        const button = document.getElementById('global-balance-toggle');
+        const icon = document.getElementById('global-balance-icon');
+        const label = document.getElementById('global-balance-label');
+        const visible = visibilityState.global;
+        if (button) {
+            button.classList.toggle('is-visible', visible);
+            button.title = visible ? 'Ekrandaki tüm bakiyeleri gizle' : 'Ekrandaki tüm bakiyeleri göster';
         }
+        if (icon) icon.textContent = visible ? '🙈' : '👁️';
+        if (label) label.textContent = visible ? 'Bakiyeleri Gizle' : 'Bakiyeleri Göster';
     }
+
 
     function renderOverviewBalances() {
         const ids = ['grand-total', 'total-income', 'total-expense', 'total-debt-bal', 'total-invoice'];
         const eyeIcon = document.getElementById('overview-eye-icon');
         if(eyeIcon) eyeIcon.innerText = visibilityState.global ? "🙈" : "👁️";
+        renderGlobalBalanceToggle();
 
         ids.forEach(id => {
             const el = document.getElementById(id);
             if(!el) return;
             const val = parseFloat(el.getAttribute('data-val')) || 0;
-            if (!visibilityState[id]) {
+            if (!visibilityState.global) {
                 el.innerText = "****** TL";
             } else {
                 el.innerText = id === 'total-debt-bal' ? ((val >= 0 ? "+" : "") + val.toFixed(2) + " TL") : (val.toFixed(2) + " TL");
@@ -2336,7 +2422,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         const account = selectedAccountId ? getAccountByRef(selectedAccountId) : null;
         card.classList.toggle('open', !!account);
         if (!account) return;
-        const hidden = account.hidden !== false;
+        const hidden = !visibilityState.global;
         document.getElementById('account-focus-name').textContent = account.name;
         document.getElementById('account-focus-net').textContent = hidden ? '****** TL' : moneyText(account.balance);
         document.getElementById('account-focus-usable').textContent = hidden ? '****** TL' : moneyText(Number(account.balance || 0) + Number(account.kmh || 0));
@@ -2388,7 +2474,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                 button.type = 'button';
                 button.className = `rail-account-row ${account.balance < 0 ? 'negative' : 'positive'} ${selectedAccountId === account.id ? 'selected' : ''}`;
                 button.onclick = () => viewAccountMovements(account.id);
-                const isHidden = account.hidden !== false;
+                const isHidden = !visibilityState.global;
                 button.innerHTML = `
                     <span class="rail-account-copy">
                         <span>${escapeHtml(account.name)}</span>
@@ -2447,6 +2533,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         renderUpcoming();
         calculateTotals();
         renderOverviewBalances();
+        renderGlobalBalanceToggle();
         initVirtualNumpad();
 
         if (shouldSave) saveToCloud();
@@ -2530,7 +2617,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
 
         data.accounts.forEach((acc, idx) => {
             const usable = acc.balance + acc.kmh;
-            const isHidden = acc.hidden !== false;
+            const isHidden = !visibilityState.global;
             const li = document.createElement('li');
             li.className = `account-item ${selectedAccountId === acc.id ? 'selected' : ''}`;
             li.setAttribute('role', 'button');
@@ -2554,7 +2641,6 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                     <span class="account-item-hint">📄 Hesap hareketlerini görmek için seçin</span>
                 </div>
                 <div class="actions" onclick="event.stopPropagation()">
-                    <button class="btn-sm btn-eye" onclick="toggleItemVisibility('accounts', ${idx})">${isHidden ? '👁️' : '🙈'}</button>
                     <button class="btn-sm btn-success" onclick="viewAccountMovements('${acc.id}')">Hareketler</button>
                     <button class="btn-sm btn-warning" onclick="editAccount(${idx})">Düzenle</button>
                     <button class="btn-sm btn-danger" onclick="deleteAccount(${idx})">Sil</button>
@@ -2993,7 +3079,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
             if (!tx.isPending && tx.type === 'income') fIncome += tx.amount;
             if (!tx.isPending && tx.type === 'expense') fExpense += tx.amount;
 
-            const isHidden = tx.hidden !== false;
+            const isHidden = !visibilityState.global;
             const sourceName = getAccountName(tx.accountId, tx.account);
             const targetName = getAccountName(tx.targetAccountId, tx.targetAccount);
             let kindText = tx.type === 'income' ? 'GELİR' : tx.type === 'expense' ? 'GİDER' : 'TRANSFER';
@@ -3025,7 +3111,6 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                 <div class="ledger-amount ${signedAmount < 0 ? 'negative' : signedAmount > 0 ? 'positive' : ''}">${amountText}</div>
                 <div class="ledger-balance ${running !== null && running < 0 ? 'negative' : ''}">${fifthColumn}</div>
                 <div class="ledger-actions">
-                    <button class="btn-sm btn-eye" onclick="toggleItemVisibility('transactions', ${originalIndex})" title="Tutarı göster/gizle">${isHidden ? '👁' : '◉'}</button>
                     <button class="btn-sm btn-warning" onclick="editTransaction(${originalIndex})" title="Düzenle">✎</button>
                     <button class="btn-sm btn-danger" onclick="deleteTransaction(${originalIndex})" title="Sil">×</button>
                 </div>`;
@@ -3039,7 +3124,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
             list.appendChild(empty);
         }
 
-        const showSummary = visibilityState['filtered-summary'];
+        const showSummary = visibilityState.global;
         document.getElementById('filtered-income').innerText = showSummary ? moneyText(fIncome) : '****** TL';
         document.getElementById('filtered-expense').innerText = showSummary ? moneyText(fExpense) : '****** TL';
     }
@@ -3411,7 +3496,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
             const paidSum = (d.payments || []).reduce((s, p) => s + p.amount, 0);
             const remaining = Math.max(0, d.amount - paidSum);
             const percent = d.amount > 0 ? Math.min(100, Math.round((paidSum / d.amount) * 100)) : 0;
-            const isHidden = d.hidden !== false;
+            const isHidden = !visibilityState.global;
             const isInactive = d.status !== 'active' || remaining === 0;
 
             const card = document.createElement('div');
@@ -3435,7 +3520,6 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:10px; flex-wrap:wrap;">
                     <small style="color:#64748b;">Ödenen: ${isHidden ? '******' : paidSum.toFixed(2)} / Toplam: ${isHidden ? '******' : d.amount.toFixed(2)} TL</small>
                     <div class="actions">
-                        <button class="btn-sm btn-eye" onclick="toggleItemVisibility('debts', ${idx})">${isHidden ? '👁️' : '🙈'}</button>
                         <button class="btn-sm btn-success" onclick="openPaymentModal(${idx})">📜 Ödeme Geçmişi / Yap</button>
                         <button class="btn-sm btn-warning" onclick="editDebt(${idx})">Düzenle</button>
                         <button class="btn-sm btn-danger" onclick="deleteDebt(${idx})">Sil</button>
@@ -3616,7 +3700,10 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
             type,
             period,
             month,
-            hidden: old?.hidden ?? true
+            hidden: old?.hidden ?? true,
+            sourceUpcomingKey: old?.sourceUpcomingKey || '',
+            sourceUpcomingType: old?.sourceUpcomingType || '',
+            sourceUpcomingId: old?.sourceUpcomingId || ''
         };
         if (editIdx !== '') data.forecasts[Number(editIdx)] = newForecast;
         else data.forecasts.push(newForecast);
@@ -3651,7 +3738,101 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         }
     }
 
+    function getForecastImportableUpcomingItems() {
+        return buildUpcomingItems()
+            .filter(item => item.flow === 'in' || item.flow === 'out')
+            .filter(item => item.date)
+            .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title), 'tr'));
+    }
+
+    function toggleForecastUpcomingSelection(key, checked) {
+        if (checked) selectedForecastUpcomingKeys.add(key);
+        else selectedForecastUpcomingKeys.delete(key);
+        renderForecastUpcomingPicker();
+    }
+
+    function selectAllForecastUpcoming() {
+        getForecastImportableUpcomingItems().forEach(item => selectedForecastUpcomingKeys.add(item.key));
+        renderForecastUpcomingPicker();
+    }
+
+    function clearForecastUpcomingSelection() {
+        selectedForecastUpcomingKeys.clear();
+        renderForecastUpcomingPicker();
+    }
+
+    function renderForecastUpcomingPicker() {
+        const container = document.getElementById('forecast-upcoming-picker');
+        if (!container) return;
+        const items = getForecastImportableUpcomingItems();
+        const validKeys = new Set(items.map(item => item.key));
+        [...selectedForecastUpcomingKeys].forEach(key => {
+            if (!validKeys.has(key)) selectedForecastUpcomingKeys.delete(key);
+        });
+
+        if (!items.length) {
+            container.innerHTML = '<div class="upcoming-empty">Bütçeye aktarılabilecek yaklaşan işlem bulunmuyor.</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        items.forEach(item => {
+            const alreadyAdded = data.forecasts.some(forecast => forecast.sourceUpcomingKey === item.key);
+            const label = document.createElement('label');
+            label.className = 'forecast-upcoming-option';
+            const checked = selectedForecastUpcomingKeys.has(item.key);
+            label.innerHTML = `
+                <input data-key="${escapeHtml(item.key)}" onchange="toggleForecastUpcomingSelection(this.dataset.key, this.checked)" type="checkbox" ${checked ? 'checked' : ''} ${alreadyAdded ? 'disabled' : ''}/>
+                <span><b>${item.icon} ${escapeHtml(item.title)}</b><small>📅 ${escapeHtml(item.date)} · ${item.flow === 'out' ? 'Gider planı' : 'Gelir planı'}${alreadyAdded ? ' · Bütçeye eklendi' : ''}</small></span>
+                <strong>${visibilityState.global ? escapeHtml(moneyText(item.amount)) : '****** TL'}</strong>`;
+            container.appendChild(label);
+        });
+    }
+
+    function addSelectedUpcomingToForecast() {
+        const selectedItems = getForecastImportableUpcomingItems().filter(item => selectedForecastUpcomingKeys.has(item.key));
+        if (!selectedItems.length) {
+            alert('Bütçeye eklemek için en az bir yaklaşan işlem seçiniz.');
+            return;
+        }
+
+        let added = 0;
+        let skipped = 0;
+        selectedItems.forEach(item => {
+            if (data.forecasts.some(forecast => forecast.sourceUpcomingKey === item.key)) {
+                skipped += 1;
+                return;
+            }
+            const month = String(item.date || '').slice(0, 7);
+            if (!/^\d{4}-\d{2}$/.test(month)) {
+                skipped += 1;
+                return;
+            }
+            data.forecasts.push({
+                id: generateId('forecast'),
+                desc: item.title,
+                amount: Number(item.amount || 0),
+                type: item.flow === 'in' ? 'income' : 'expense',
+                period: 'monthly',
+                month,
+                hidden: true,
+                sourceUpcomingKey: item.key,
+                sourceUpcomingType: item.type,
+                sourceUpcomingId: item.sourceId
+            });
+            added += 1;
+        });
+
+        if (added > 0) {
+            document.getElementById('forecast-month-filter').value = String(selectedItems[0].date).slice(0, 7);
+        }
+        selectedForecastUpcomingKeys.clear();
+        updateUI();
+        if (skipped > 0) alert(`${added} kayıt bütçeye eklendi. ${skipped} kayıt daha önce eklenmiş veya tarih bilgisi uygun olmadığı için atlandı.`);
+    }
+
     function renderForecasts() {
+        renderForecastUpcomingPicker();
         const tbody = document.getElementById('forecast-table-body');
         tbody.innerHTML = '';
         const selectedMonth = document.getElementById('forecast-month-filter').value;
@@ -3667,7 +3848,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
 
             const diff = f.type === 'expense' ? f.amount - actualTotal : actualTotal - f.amount;
             const diffColor = diff >= 0 ? 'var(--success)' : 'var(--danger)';
-            const isHidden = f.hidden !== false;
+            const isHidden = !visibilityState.global;
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${escapeHtml(f.desc)}</strong></td>
@@ -3676,7 +3857,6 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                 <td>${isHidden ? '******' : actualTotal.toFixed(2) + ' TL'}</td>
                 <td style="color:${diffColor}; font-weight:bold;">${isHidden ? '******' : (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' TL'}</td>
                 <td>
-                    <button class="btn-sm btn-eye" onclick="toggleItemVisibility('forecasts', ${originalIndex})">${isHidden ? '👁️' : '🙈'}</button>
                     <button class="btn-sm btn-warning" onclick="editForecast(${originalIndex})">Düzenle</button>
                     <button class="btn-sm btn-danger" onclick="deleteForecast(${originalIndex})">Sil</button>
                 </td>`;
@@ -3784,7 +3964,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         const list = document.getElementById('invoice-list');
         list.innerHTML = '';
         data.invoices.forEach((inv, idx) => {
-            const isHidden = inv.hidden !== false;
+            const isHidden = !visibilityState.global;
             const accountName = inv.accountId ? getAccountName(inv.accountId, inv.account) : 'Hesap seçilmedi';
             const li = document.createElement('li');
             li.className = `invoice-item ${inv.paid ? 'paid' : ''}`;
@@ -3795,7 +3975,6 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                 </div>
                 <div class="actions">
                     <span style="font-weight:bold; margin-right:10px;">${isHidden ? '****** TL' : inv.amount.toFixed(2) + ' TL'}</span>
-                    <button class="btn-sm btn-eye" onclick="toggleItemVisibility('invoices', ${idx})">${isHidden ? '👁️' : '🙈'}</button>
                     <button class="btn-sm btn-warning" onclick="editInvoice(${idx})">Düzenle</button>
                     <button class="btn-sm ${inv.paid ? 'btn-warning' : 'btn-success'}" onclick="toggleInvoicePaid(${idx})">${inv.paid ? 'Ödenmedi İşaretle' : 'Ödendi İşaretle'}</button>
                     <button class="btn-sm btn-danger" onclick="deleteInvoice(${idx})">Sil</button>
@@ -3923,10 +4102,6 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         requestAnimationFrame(() => document.getElementById(formId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
 
-    function toggleUpcomingBalances() {
-        visibilityState['upcoming-summary'] = !visibilityState['upcoming-summary'];
-        renderUpcoming();
-    }
 
     function openPendingExpensePayment(sourceId) {
         const tx = data.transactions.find(transaction => transaction.id === sourceId);
@@ -4013,15 +4188,12 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         const selectedPayments = filtered.filter(item => item.flow === 'out' && selectedUpcomingKeys.has(item.key));
         const selectedTotal = selectedPayments.reduce((sum, item) => sum + item.amount, 0);
         const netCashEffect = totalIncoming - totalOutgoing;
-        const showUpcomingTotals = visibilityState['upcoming-summary'];
+        const showUpcomingTotals = visibilityState.global;
         const moneyOrHidden = value => showUpcomingTotals ? moneyText(value) : '****** TL';
 
         summary.innerHTML = `
             <div class="upcoming-summary-header">
                 <span>${escapeHtml(rangeText)} aralığında ${filtered.length} kayıt; bunların ${visibleUpcomingPaymentKeys.length} tanesi ödeme.</span>
-                <button type="button" class="btn-sm btn-eye" onclick="toggleUpcomingBalances()">
-                    ${showUpcomingTotals ? '🙈 Bakiyeleri Gizle' : '👁️ Bakiyeleri Göster'}
-                </button>
             </div>
             <div class="upcoming-total-grid">
                 <div class="upcoming-total-card payment"><span>Seçili Dönem Toplam Ödeme</span><strong>${moneyOrHidden(totalOutgoing)}</strong></div>

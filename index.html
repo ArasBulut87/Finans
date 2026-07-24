@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Aras Finans v2.1.0 — Kişisel Finans Yönetimi</title>
+<title>Aras Finans v2.2.0 — Kişisel Finans Yönetimi</title>
 <style>
         :root {
             --primary: #4f46e5;
@@ -1094,6 +1094,116 @@
             .summary-grid { grid-template-columns: 1fr; }
             .workspace-heading h1 { font-size: 1.05rem; }
         }
+
+
+        /* v2.2.0 — Odaklanmış ekran, hesap özeti ve görünürlük davranışları */
+        .app-shell.rail-hidden {
+            grid-template-columns: 218px minmax(0, 1fr);
+            grid-template-areas:
+                "topbar topbar"
+                "sidebar workspace";
+        }
+        .app-shell.rail-hidden .account-rail { display: none; }
+        .view-hidden { display: none !important; }
+
+        .sidebar-balance-grid {
+            display: grid;
+            gap: 7px;
+            margin-top: 7px;
+        }
+        .sidebar-balance-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #e2eaee;
+        }
+        .sidebar-balance-line span {
+            color: #728892;
+            font-size: .71rem;
+            font-weight: 700;
+        }
+        .sidebar-balance-line strong {
+            margin: 0;
+            color: var(--brand-dark);
+            font-size: .82rem;
+            white-space: nowrap;
+        }
+
+        .account-focus-card {
+            display: none;
+            grid-template-columns: minmax(0,1fr) auto;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 12px;
+            padding: 13px 14px;
+            border: 1px solid #b9dfe8;
+            border-left: 5px solid var(--brand);
+            border-radius: 6px;
+            background: linear-gradient(135deg, #f0fbfd, #ffffff);
+        }
+        .account-focus-card.open { display: grid; }
+        .account-focus-copy { min-width: 0; }
+        .account-focus-copy > span {
+            display: block;
+            color: #6e8791;
+            font-size: .7rem;
+            font-weight: 800;
+            letter-spacing: .06em;
+        }
+        .account-focus-copy h3 { margin: 2px 0 8px; font-size: 1.12rem; }
+        .account-focus-balances { display: flex; gap: 8px; flex-wrap: wrap; }
+        .account-focus-balances span {
+            padding: 5px 9px;
+            border: 1px solid #d6e5ea;
+            border-radius: 999px;
+            background: #fff;
+            color: #3d5965;
+            font-size: .78rem;
+            font-weight: 700;
+        }
+        .account-focus-actions { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+        .account-focus-actions button {
+            border: 0;
+            color: #fff;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .account-focus-actions .income-action { background: var(--success); }
+        .account-focus-actions .expense-action { background: var(--danger); }
+        .transaction-account-help {
+            display: none;
+            margin-top: -4px;
+            padding: 7px 9px;
+            border-radius: 5px;
+            background: #fff7ed;
+            color: #9a3412;
+            font-size: .76rem;
+        }
+        .transaction-account-help.open { display: block; }
+        .pending-payment-info {
+            margin-bottom: 12px;
+            padding: 10px;
+            border: 1px solid #fed7aa;
+            border-radius: 6px;
+            background: #fff7ed;
+            color: #7c2d12;
+            font-size: .86rem;
+        }
+
+        @media (max-width: 1200px) and (min-width: 901px) {
+            .app-shell.rail-hidden { grid-template-columns: 205px minmax(0,1fr); }
+        }
+        @media (max-width: 900px) {
+            .app-shell.rail-hidden {
+                grid-template-columns: 1fr;
+                grid-template-areas: "topbar" "workspace";
+            }
+            .account-focus-card { grid-template-columns: 1fr; }
+            .account-focus-actions { justify-content: flex-start; }
+        }
+
 </style>
 </head>
 <body>
@@ -1113,13 +1223,16 @@
 <button class="top-action primary" onclick="quickOpenTab('tab-transactions','t-desc')" type="button">⊕ Yeni İşlem</button>
 <button class="top-action" onclick="quickOpenTab('tab-accounts','acc-name')" type="button">▣ Yeni Hesap</button>
 <button aria-label="Hesap listesini aç" class="top-icon-button mobile-only" onclick="toggleAccountRail()" type="button">₺</button>
-<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.1.0</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
+<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.2.0</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
 </div>
 </header><aside class="app-sidebar" id="app-sidebar">
 <div class="sidebar-budget-card">
 <span>📘 Bütçem</span>
 <small>Kişisel Finans Defteri</small>
-<strong id="sidebar-net-total">****** TL</strong>
+<div class="sidebar-balance-grid">
+<div class="sidebar-balance-line"><span>Net Bakiye</span><strong id="sidebar-net-total">****** TL</strong></div>
+<div class="sidebar-balance-line"><span>Kullanılabilir</span><strong id="sidebar-usable-total">****** TL</strong></div>
+</div>
 </div>
 <nav aria-label="Ana menü" class="side-nav">
 <button class="side-link utility-link" id="home-nav-btn" onclick="openHome()" type="button"><span>⌂</span> Ana Sayfa</button>
@@ -1196,7 +1309,7 @@
 </div>
 </div>
 </div>
-<div class="box module-surface">
+<div class="box module-surface" id="module-surface">
 <!-- HESAPLAR SEKME -->
 <div class="tab-content" id="tab-accounts">
 <h3>Hesap Yönetimi</h3>
@@ -1218,6 +1331,20 @@
 </div>
 <!-- GELİR GİDER SEKME -->
 <div class="tab-content active" id="tab-transactions">
+<div class="account-focus-card" id="account-focus-card">
+<div class="account-focus-copy">
+<span>SEÇİLİ HESAP</span>
+<h3 id="account-focus-name">Hesap</h3>
+<div class="account-focus-balances">
+<span>Net Bakiye: <b id="account-focus-net">****** TL</b></span>
+<span>Kullanılabilir: <b id="account-focus-usable">****** TL</b></span>
+</div>
+</div>
+<div class="account-focus-actions">
+<button class="income-action" onclick="startAccountTransaction('income')" type="button">＋ Gelir Ekle</button>
+<button class="expense-action" onclick="startAccountTransaction('expense')" type="button">− Gider Ekle</button>
+</div>
+</div>
 <h3>Gelir / Gider / Transfer Girişi</h3>
 <form id="transaction-form" onsubmit="saveTransaction(event)">
 <input id="t-edit-index" type="hidden" value=""/>
@@ -1239,14 +1366,15 @@
 </select>
 </div>
 <div class="flex-group">
-<select id="t-account" required="">
+<select id="t-account">
 <option value="">Hesap Seçin...</option>
 </select>
 <select id="t-target-account" style="display:none;">
 <option value="">Alıcı Hesap Seçin...</option>
 </select>
-<input id="t-date" required="" type="date"/>
+<input id="t-date" onchange="updateTransactionAccountRequirement()" required="" type="date"/>
 </div>
+<div class="transaction-account-help" id="t-account-help">İleri tarihli giderlerde hesabı şimdi seçmek zorunda değilsiniz. Ödeme sırasında hesap seçmeniz veya “hesap seçmeden öde” seçeneğini kullanmanız istenir.</div>
 <div class="flex-group" style="margin-top: 5px;">
 <button class="submit-btn" id="t-submit-btn" style="flex:2;" type="submit">İşlemi Kaydet</button>
 <button class="btn-danger" id="t-cancel-btn" onclick="cancelTransactionEdit()" style="display:none; flex:1;" type="button">İptal Et ✖</button>
@@ -1434,7 +1562,7 @@
 <div class="numpad-btn success-btn" onclick="closeNumpad()">✔</div>
 <div class="numpad-btn" onclick="numpadInput('.')">.</div>
 <div class="numpad-btn" onclick="numpadInput('0')">0</div>
-<div class="numpad-btn" onclick="numpadInput('00')">00</div>
+<div class="numpad-btn" onclick="numpadInput('000')">000</div>
 <div class="numpad-btn close-btn" onclick="closeNumpad()">Kapat</div>
 <div class="numpad-btn action-btn" onclick="numpadInput('+')">+</div>
 <div class="numpad-btn action-btn" onclick="numpadInput('-')">−</div>
@@ -1552,8 +1680,30 @@
 </div>
 </div>
 </div>
+
+<!-- MODAL: BEKLEYEN GİDERİ ÖDE -->
+<div class="modal-backdrop" id="pending-expense-payment-modal">
+<div class="modal-box" style="max-width:460px;">
+<h3>✅ Bekleyen Gideri Öde</h3>
+<div class="pending-payment-info" id="pending-payment-info"></div>
+<form id="pending-payment-form" onsubmit="submitPendingExpensePayment(event)" style="background:none; border:none; padding:0;">
+<select id="pending-payment-account" onchange="syncPendingPaymentChoice()">
+<option value="">Ödeme hesabı seçiniz...</option>
+</select>
+<label class="inline-checkbox" style="margin-top:8px;">
+<input id="pending-pay-without-account" onchange="syncPendingPaymentChoice()" type="checkbox"/>
+Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
+</label>
+<input id="pending-payment-date" required type="date" title="Ödeme tarihi"/>
+<div class="flex-group" style="margin-top:10px;">
+<button class="submit-btn" style="flex:2" type="submit">Ödendi İşaretle</button>
+<button class="btn-danger" onclick="closePendingExpensePaymentModal()" style="flex:1" type="button">İptal</button>
+</div>
+</form>
+</div>
+</div>
 <script>
-    const APP_VERSION = "2.1.0";
+    const APP_VERSION = "2.2.0";
     const LOCAL_STORAGE_KEY = "arasFinansData_v1";
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
 
@@ -1607,6 +1757,7 @@
     let dataInitialized = false;
     let selectedUpcomingKeys = new Set();
     let visibleUpcomingPaymentKeys = [];
+    let pendingExpensePaymentTransactionId = '';
 
     const now = new Date();
     document.getElementById('t-date').value = now.toISOString().split('T')[0];
@@ -1656,6 +1807,7 @@
     }
 
     function getAccountName(accountId, legacyName = '') {
+        if (!accountId && !legacyName) return 'Hesap seçilmedi';
         const account = getAccountByRef(accountId, legacyName);
         return account ? account.name : (legacyName || 'Silinmiş hesap');
     }
@@ -1747,6 +1899,12 @@
             tx.account = getAccountName(tx.accountId, tx.account);
             tx.targetAccount = tx.targetAccountId ? getAccountName(tx.targetAccountId, tx.targetAccount) : (tx.targetAccount || '');
             if (tx.balanceApplied === undefined) tx.balanceApplied = true; // Eski sürüm tüm işlemleri anında uyguluyordu.
+            if (tx.requiresPaymentConfirmation === undefined) {
+                tx.requiresPaymentConfirmation = tx.type === 'expense' && !!tx.isPending && isFutureDate(tx.date);
+            }
+            if (tx.paid === undefined) tx.paid = tx.requiresPaymentConfirmation ? !tx.isPending : true;
+            tx.paidWithoutAccount = !!tx.paidWithoutAccount;
+            tx.paidDate = String(tx.paidDate || '');
         });
 
         data.debts.forEach(debt => {
@@ -1790,9 +1948,18 @@
 
     function refreshTransactionStatuses() {
         (data.transactions || []).forEach(tx => {
+            if (tx.type === 'expense' && tx.requiresPaymentConfirmation) {
+                tx.isPending = !tx.paid;
+                if (!tx.paid && tx.balanceApplied) {
+                    revertAccountBalancesForTx(tx);
+                } else if (tx.paid && !tx.paidWithoutAccount && tx.accountId && !tx.balanceApplied) {
+                    applyAccountBalancesForTx(tx);
+                }
+                return;
+            }
+
             const pendingNow = isFutureDate(tx.date);
             tx.isPending = pendingNow;
-
             if (pendingNow && tx.balanceApplied) {
                 revertAccountBalancesForTx(tx);
             } else if (!pendingNow && !tx.balanceApplied) {
@@ -2029,6 +2196,28 @@
         document.getElementById('mobile-overlay')?.classList.remove('open');
     }
 
+
+    function applyWorkspaceMode(mode = 'tab') {
+        const shell = document.querySelector('.app-shell');
+        const overview = document.getElementById('overview-section');
+        const moduleSurface = document.getElementById('module-surface');
+        const upcoming = document.getElementById('upcoming-panel');
+        const isHome = mode === 'home';
+        shell?.classList.toggle('rail-hidden', !isHome);
+        overview?.classList.toggle('view-hidden', !isHome);
+        moduleSurface?.classList.toggle('view-hidden', mode !== 'tab');
+        upcoming?.classList.toggle('view-hidden', mode !== 'home' && mode !== 'upcoming');
+    }
+
+    function refreshVisibleFinancialAreas() {
+        renderAccountRail();
+        renderAccounts();
+        renderTransactions();
+        renderUpcoming();
+        renderOverviewBalances();
+        renderAccountFocusCard();
+    }
+
     function quickOpenTab(tabId, focusId = '') {
         openTab(tabId);
         closeMobilePanels();
@@ -2047,12 +2236,14 @@
     }
 
     function openHome() {
+        hideAllFinancialValues();
         selectedAccountId = '';
         const accountFilter = document.getElementById('f-filter-account');
         if (accountFilter) accountFilter.value = '';
-        openTab('tab-transactions');
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(button => button.classList.remove('active'));
         document.getElementById('home-nav-btn')?.classList.add('active');
+        applyWorkspaceMode('home');
         const overviewContent = document.getElementById('overview-content');
         const arrow = document.getElementById('panel-arrow');
         overviewContent?.classList.add('open');
@@ -2062,9 +2253,8 @@
         const subtitle = document.getElementById('workspace-subtitle');
         if (kicker) kicker.textContent = 'ANA SAYFA';
         if (title) title.textContent = 'Finansal Genel Bakış';
-        if (subtitle) subtitle.textContent = 'Hesaplarınızı, gerçekleşen hareketleri ve yaklaşan ödemeleri tek ekranda takip edin.';
-        renderTransactions();
-        renderAccountRail();
+        if (subtitle) subtitle.textContent = 'Hesaplarınızı ve yaklaşan ödemeleri ana ekranda takip edin.';
+        refreshVisibleFinancialAreas();
         document.getElementById('app-workspace')?.scrollTo({ top: 0, behavior: 'smooth' });
         closeMobilePanels();
     }
@@ -2077,7 +2267,19 @@
     }
 
     function scrollToUpcoming() {
-        document.getElementById('upcoming-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        hideAllFinancialValues();
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(button => button.classList.remove('active'));
+        document.getElementById('home-nav-btn')?.classList.remove('active');
+        applyWorkspaceMode('upcoming');
+        const kicker = document.getElementById('workspace-kicker');
+        const title = document.getElementById('workspace-title');
+        const subtitle = document.getElementById('workspace-subtitle');
+        if (kicker) kicker.textContent = 'YAKLAŞAN İŞLEMLER';
+        if (title) title.textContent = 'Yaklaşan Ödemeler ve Bekleyen İşlemler';
+        if (subtitle) subtitle.textContent = 'Vadeleri filtreleyin, ödemeleri işaretleyin ve bekleyen giderleri tamamlayın.';
+        renderUpcoming();
+        document.getElementById('app-workspace')?.scrollTo({ top: 0, behavior: 'smooth' });
         closeMobilePanels();
     }
 
@@ -2128,17 +2330,46 @@
         return result;
     }
 
+    function renderAccountFocusCard() {
+        const card = document.getElementById('account-focus-card');
+        if (!card) return;
+        const account = selectedAccountId ? getAccountByRef(selectedAccountId) : null;
+        card.classList.toggle('open', !!account);
+        if (!account) return;
+        const hidden = account.hidden !== false;
+        document.getElementById('account-focus-name').textContent = account.name;
+        document.getElementById('account-focus-net').textContent = hidden ? '****** TL' : moneyText(account.balance);
+        document.getElementById('account-focus-usable').textContent = hidden ? '****** TL' : moneyText(Number(account.balance || 0) + Number(account.kmh || 0));
+    }
+
+    function startAccountTransaction(type) {
+        const account = selectedAccountId ? getAccountByRef(selectedAccountId) : null;
+        if (!account) return;
+        cancelTransactionEdit();
+        document.getElementById('t-type').value = type;
+        onTransactionTypeOrCategoryChange();
+        document.getElementById('t-account').value = account.id;
+        document.getElementById('t-date').value = formatDateInput(new Date());
+        updateTransactionAccountRequirement();
+        document.getElementById('transaction-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        requestAnimationFrame(() => document.getElementById('t-amount')?.focus());
+    }
+
     function renderAccountRail() {
         const list = document.getElementById('account-rail-list');
         if (!list) return;
         list.innerHTML = '';
         const total = data.accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
+        const usableTotal = data.accounts.reduce((sum, account) => sum + Number(account.balance || 0) + Number(account.kmh || 0), 0);
         const show = visibilityState.global;
         const totalText = show ? moneyText(total) : '****** TL';
+        const usableText = show ? moneyText(usableTotal) : '****** TL';
         const railTotal = document.getElementById('account-rail-total');
         const sidebarTotal = document.getElementById('sidebar-net-total');
+        const sidebarUsableTotal = document.getElementById('sidebar-usable-total');
         if (railTotal) railTotal.textContent = totalText;
         if (sidebarTotal) sidebarTotal.textContent = totalText;
+        if (sidebarUsableTotal) sidebarUsableTotal.textContent = usableText;
         document.getElementById('all-accounts-row')?.classList.toggle('selected', !selectedAccountId);
 
         const groups = [
@@ -2179,11 +2410,14 @@
         if (filter) filter.value = '';
         renderTransactions();
         renderAccountRail();
+        renderAccountFocusCard();
         updateWorkspaceHeader('tab-transactions');
         closeMobilePanels();
     }
 
     function openTab(tabId, sourceEvent = null) {
+        hideAllFinancialValues();
+        applyWorkspaceMode('tab');
         document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById('home-nav-btn')?.classList.remove('active');
@@ -2193,6 +2427,8 @@
         const activeButton = sourceEvent?.currentTarget || [...document.querySelectorAll('.tab-btn')].find(btn => String(btn.getAttribute('onclick') || '').includes(`'${tabId}'`));
         if (activeButton) activeButton.classList.add('active');
         updateWorkspaceHeader(tabId);
+        refreshVisibleFinancialAreas();
+        document.getElementById('app-workspace')?.scrollTo({ top: 0, behavior: 'smooth' });
         closeMobilePanels();
     }
 
@@ -2202,6 +2438,7 @@
         refreshTransactionStatuses();
         renderAccounts();
         renderAccountRail();
+        renderAccountFocusCard();
         renderSelectOptions();
         renderTransactions();
         renderInvoices();
@@ -2336,10 +2573,13 @@
         document.getElementById('f-filter-time').value = 'all';
         document.getElementById('custom-date-inputs').style.display = 'none';
         document.getElementById('f-filter-search').value = '';
+        document.getElementById('t-account').value = account.id;
+        updateTransactionAccountRequirement();
         renderTransactions();
         renderAccountRail();
+        renderAccountFocusCard();
         updateWorkspaceHeader('tab-transactions');
-        document.getElementById('transaction-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('app-workspace')?.scrollTo({ top: 0, behavior: 'smooth' });
         closeMobilePanels();
     }
 
@@ -2412,10 +2652,12 @@
         const pmAccountSelect = document.getElementById('pm-account');
         const debtTypeSelect = document.getElementById('d-debt-type');
         const invoiceAccountSelect = document.getElementById('i-account');
+        const pendingPaymentAccountSelect = document.getElementById('pending-payment-account');
 
         const previousFilter = filterAccSelect.value;
         const previousPaymentAccount = pmAccountSelect.value;
         const previousInvoiceAccount = invoiceAccountSelect ? invoiceAccountSelect.value : '';
+        const previousPendingPaymentAccount = pendingPaymentAccountSelect ? pendingPaymentAccountSelect.value : '';
         const accountOptions = data.accounts.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)}</option>`).join('');
 
         accSelect.innerHTML = '<option value="">Hesap Seçin...</option>' + accountOptions;
@@ -2423,16 +2665,19 @@
         filterAccSelect.innerHTML = '<option value="">Tüm Hesaplar</option>' + accountOptions;
         pmAccountSelect.innerHTML = '<option value="">Hesap seçmeden yalnızca ödeme kaydı oluştur</option>' + accountOptions;
         if (invoiceAccountSelect) invoiceAccountSelect.innerHTML = '<option value="">Ödeme Hesabı Seçin...</option>' + accountOptions;
+        if (pendingPaymentAccountSelect) pendingPaymentAccountSelect.innerHTML = '<option value="">Ödeme hesabı seçiniz...</option>' + accountOptions;
 
         if ([...filterAccSelect.options].some(o => o.value === previousFilter)) filterAccSelect.value = previousFilter;
         if ([...pmAccountSelect.options].some(o => o.value === previousPaymentAccount)) pmAccountSelect.value = previousPaymentAccount;
         if (invoiceAccountSelect && [...invoiceAccountSelect.options].some(o => o.value === previousInvoiceAccount)) invoiceAccountSelect.value = previousInvoiceAccount;
+        if (pendingPaymentAccountSelect && [...pendingPaymentAccountSelect.options].some(o => o.value === previousPendingPaymentAccount)) pendingPaymentAccountSelect.value = previousPendingPaymentAccount;
 
         const currentDebtType = debtTypeSelect.value;
         debtTypeSelect.innerHTML = data.debtTypes.map(dt => `<option value="${escapeHtml(dt.id)}">${escapeHtml(dt.icon)} ${escapeHtml(dt.name)}</option>`).join('');
         if ([...debtTypeSelect.options].some(o => o.value === currentDebtType)) debtTypeSelect.value = currentDebtType;
 
         onTransactionTypeOrCategoryChange();
+        updateTransactionAccountRequirement();
     }
 
     function onTransactionTypeOrCategoryChange() {
@@ -2465,6 +2710,24 @@
             if ([...catSelect.options].some(option => option.value === previous)) catSelect.value = previous;
             onParentCategoryChange();
         }
+        updateTransactionAccountRequirement();
+    }
+
+    function updateTransactionAccountRequirement() {
+        const type = document.getElementById('t-type')?.value || 'expense';
+        const date = document.getElementById('t-date')?.value || '';
+        const accountSelect = document.getElementById('t-account');
+        const help = document.getElementById('t-account-help');
+        if (!accountSelect) return;
+        const editIndex = document.getElementById('t-edit-index')?.value || '';
+        const oldTx = editIndex !== '' ? data.transactions[Number(editIndex)] : null;
+        const scheduledExpense = type === 'expense' && (isFutureDate(date) || (!!oldTx?.requiresPaymentConfirmation && !oldTx?.paid));
+        const required = type === 'income' || type === 'transfer' || (type === 'expense' && !scheduledExpense);
+        accountSelect.toggleAttribute('required', required);
+        if (accountSelect.options[0]) {
+            accountSelect.options[0].textContent = scheduledExpense ? 'Hesabı daha sonra seçebilirsiniz...' : 'Hesap Seçin...';
+        }
+        help?.classList.toggle('open', scheduledExpense);
     }
 
     function onParentCategoryChange() {
@@ -2499,6 +2762,7 @@
     function saveTransaction(e) {
         e.preventDefault();
         const editIdx = document.getElementById('t-edit-index').value;
+        const oldTx = editIdx !== '' ? data.transactions[Number(editIdx)] : null;
         const desc = document.getElementById('t-desc').value.trim();
         const amount = calculateInput(document.getElementById('t-amount').value);
         const type = document.getElementById('t-type').value;
@@ -2522,16 +2786,25 @@
             }
         }
 
-        if (amount <= 0 || !accountId || !date || (type === 'transfer' && !targetAccountId)) return;
+        const scheduledExpense = type === 'expense' && (isFutureDate(date) || (!!oldTx?.requiresPaymentConfirmation && !oldTx?.paid));
+        const accountRequired = type === 'income' || type === 'transfer' || (type === 'expense' && !scheduledExpense);
+        if (amount <= 0 || !date || (accountRequired && !accountId) || (type === 'transfer' && !targetAccountId)) {
+            if (accountRequired && !accountId) alert('Bu işlem için hesap seçimi zorunludur.');
+            return;
+        }
         if (type === 'transfer' && accountId === targetAccountId) {
             alert('Gönderen ve alıcı hesap aynı olamaz.');
             return;
         }
 
-        const account = getAccountByRef(accountId);
+        const account = accountId ? getAccountByRef(accountId) : null;
         const target = targetAccountId ? getAccountByRef(targetAccountId) : null;
+        const preservePaidState = !!oldTx?.requiresPaymentConfirmation && !!oldTx?.paid && type === 'expense';
+        const requiresPaymentConfirmation = scheduledExpense || preservePaidState;
+        const paid = requiresPaymentConfirmation ? preservePaidState : true;
+        const paidWithoutAccount = preservePaidState ? !!oldTx?.paidWithoutAccount : false;
         const newTx = {
-            id: editIdx !== '' ? data.transactions[Number(editIdx)].id : generateId('tx'),
+            id: oldTx?.id || generateId('tx'),
             desc,
             amount,
             type,
@@ -2544,36 +2817,38 @@
             account: account?.name || '',
             targetAccount: target?.name || '',
             date,
-            isPending: isFutureDate(date),
+            requiresPaymentConfirmation,
+            paid,
+            paidWithoutAccount,
+            paidDate: preservePaidState ? (oldTx?.paidDate || date) : '',
+            isPending: requiresPaymentConfirmation ? !paid : isFutureDate(date),
             balanceApplied: false,
             hidden: true
         };
 
-        if (editIdx !== '') {
-            const oldTx = data.transactions[Number(editIdx)];
-            if (oldTx.balanceApplied) revertAccountBalancesForTx(oldTx);
-            data.transactions[Number(editIdx)] = newTx;
-        } else {
-            data.transactions.push(newTx);
-        }
+        if (oldTx?.balanceApplied) revertAccountBalancesForTx(oldTx);
+        if (editIdx !== '') data.transactions[Number(editIdx)] = newTx;
+        else data.transactions.push(newTx);
 
-        if (!newTx.isPending) applyAccountBalancesForTx(newTx);
+        if (!newTx.isPending && !newTx.paidWithoutAccount) applyAccountBalancesForTx(newTx);
         cancelTransactionEdit();
         updateUI();
     }
 
     function applyAccountBalancesForTx(tx) {
-        if (tx.balanceApplied) return;
+        if (tx.balanceApplied || tx.paidWithoutAccount) return;
         const acc = getAccountByRef(tx.accountId, tx.account);
         const targetAcc = getAccountByRef(tx.targetAccountId, tx.targetAccount);
+        let applied = false;
 
-        if (tx.type === 'expense' && acc) acc.balance -= tx.amount;
-        if (tx.type === 'income' && acc) acc.balance += tx.amount;
-        if (tx.type === 'transfer') {
-            if (acc) acc.balance -= tx.amount;
-            if (targetAcc) targetAcc.balance += tx.amount;
+        if (tx.type === 'expense' && acc) { acc.balance -= tx.amount; applied = true; }
+        if (tx.type === 'income' && acc) { acc.balance += tx.amount; applied = true; }
+        if (tx.type === 'transfer' && acc && targetAcc) {
+            acc.balance -= tx.amount;
+            targetAcc.balance += tx.amount;
+            applied = true;
         }
-        tx.balanceApplied = true;
+        tx.balanceApplied = applied;
     }
 
     function revertAccountBalancesForTx(tx) {
@@ -2616,6 +2891,7 @@
         document.getElementById('t-date').value = tx.date;
         document.getElementById('t-submit-btn').innerText = 'İşlemi Güncelle';
         document.getElementById('t-cancel-btn').style.display = 'inline-block';
+        updateTransactionAccountRequirement();
     }
 
     function cancelTransactionEdit() {
@@ -2625,6 +2901,8 @@
         document.getElementById('t-submit-btn').innerText = 'İşlemi Kaydet';
         document.getElementById('t-cancel-btn').style.display = 'none';
         onTransactionTypeOrCategoryChange();
+        if (selectedAccountId && getAccountByRef(selectedAccountId)) document.getElementById('t-account').value = selectedAccountId;
+        updateTransactionAccountRequirement();
     }
 
     function deleteTransaction(index) {
@@ -2643,6 +2921,7 @@
     }
 
     function filterTransactions() {
+        hideAllFinancialValues();
         const accountId = document.getElementById('f-filter-account').value;
         selectedAccountId = accountId || '';
         const account = accountId ? getAccountByRef(accountId) : null;
@@ -2650,6 +2929,7 @@
         if (heading) heading.textContent = account ? `🔍 ${account.name} Hesap Hareketleri` : '🔍 İşlem Hareketleri ve Harcama Analizi';
         renderTransactions();
         renderAccountRail();
+        renderAccountFocusCard();
         updateWorkspaceHeader('tab-transactions');
     }
 
@@ -3583,7 +3863,8 @@
             key: `transaction:${transaction.id}`, sourceId: transaction.id, type: 'transaction',
             flow: transaction.type === 'income' ? 'in' : transaction.type === 'expense' ? 'out' : 'neutral', date: transaction.date,
             title: `Bekleyen ${transaction.type === 'income' ? 'Gelir' : transaction.type === 'expense' ? 'Gider' : 'Transfer'}: ${getTransactionDisplayTitle(transaction)}`,
-            amount: Number(transaction.amount || 0), hidden: transaction.hidden !== false, icon: '⏳'
+            amount: Number(transaction.amount || 0), hidden: transaction.hidden !== false, icon: '⏳',
+            canMarkPaid: transaction.type === 'expense' && !!transaction.requiresPaymentConfirmation && !transaction.paid
         }));
         return items;
     }
@@ -3642,6 +3923,62 @@
         requestAnimationFrame(() => document.getElementById(formId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
 
+    function toggleUpcomingBalances() {
+        visibilityState['upcoming-summary'] = !visibilityState['upcoming-summary'];
+        renderUpcoming();
+    }
+
+    function openPendingExpensePayment(sourceId) {
+        const tx = data.transactions.find(transaction => transaction.id === sourceId);
+        if (!tx || tx.type !== 'expense' || !tx.requiresPaymentConfirmation || tx.paid) return;
+        pendingExpensePaymentTransactionId = tx.id;
+        const accountSelect = document.getElementById('pending-payment-account');
+        accountSelect.value = tx.accountId || '';
+        document.getElementById('pending-pay-without-account').checked = false;
+        document.getElementById('pending-payment-date').value = formatDateInput(new Date());
+        document.getElementById('pending-payment-info').innerHTML = `<b>${escapeHtml(getTransactionDisplayTitle(tx))}</b><br>${escapeHtml(moneyText(tx.amount))} · Planlanan tarih: ${escapeHtml(tx.date || '—')}`;
+        syncPendingPaymentChoice();
+        document.getElementById('pending-expense-payment-modal').classList.add('open');
+    }
+
+    function closePendingExpensePaymentModal() {
+        document.getElementById('pending-expense-payment-modal').classList.remove('open');
+        pendingExpensePaymentTransactionId = '';
+    }
+
+    function syncPendingPaymentChoice() {
+        const withoutAccount = document.getElementById('pending-pay-without-account');
+        const accountSelect = document.getElementById('pending-payment-account');
+        if (!withoutAccount || !accountSelect) return;
+        if (accountSelect.value) withoutAccount.checked = false;
+        accountSelect.disabled = withoutAccount.checked;
+    }
+
+    function submitPendingExpensePayment(event) {
+        event.preventDefault();
+        const tx = data.transactions.find(transaction => transaction.id === pendingExpensePaymentTransactionId);
+        if (!tx) return closePendingExpensePaymentModal();
+        const accountId = document.getElementById('pending-payment-account').value;
+        const withoutAccount = document.getElementById('pending-pay-without-account').checked;
+        if (!accountId && !withoutAccount) {
+            alert('Hesap seçimi yapınız veya “Hesap seçmeden öde” seçeneğini işaretleyiniz.');
+            return;
+        }
+        if (tx.balanceApplied) revertAccountBalancesForTx(tx);
+        const account = accountId ? getAccountByRef(accountId) : null;
+        tx.accountId = withoutAccount ? '' : accountId;
+        tx.account = withoutAccount ? '' : (account?.name || '');
+        tx.paidWithoutAccount = withoutAccount;
+        tx.paid = true;
+        tx.paidDate = document.getElementById('pending-payment-date').value || formatDateInput(new Date());
+        tx.date = tx.paidDate;
+        tx.isPending = false;
+        tx.balanceApplied = false;
+        if (!withoutAccount) applyAccountBalancesForTx(tx);
+        closePendingExpensePaymentModal();
+        updateUI();
+    }
+
     function renderUpcoming() {
         const list = document.getElementById('upcoming-list');
         const summary = document.getElementById('upcoming-summary');
@@ -3682,8 +4019,8 @@
         summary.innerHTML = `
             <div class="upcoming-summary-header">
                 <span>${escapeHtml(rangeText)} aralığında ${filtered.length} kayıt; bunların ${visibleUpcomingPaymentKeys.length} tanesi ödeme.</span>
-                <button type="button" class="btn-sm btn-eye" onclick="toggleCardVisibility('upcoming-summary')">
-                    ${showUpcomingTotals ? '🙈 Toplamları Gizle' : '👁️ Toplamları Göster'}
+                <button type="button" class="btn-sm btn-eye" onclick="toggleUpcomingBalances()">
+                    ${showUpcomingTotals ? '🙈 Bakiyeleri Gizle' : '👁️ Bakiyeleri Göster'}
                 </button>
             </div>
             <div class="upcoming-total-grid">
@@ -3711,7 +4048,8 @@
                 ${selectable ? `<label class="upcoming-select-box"><input data-key="${escapeHtml(item.key)}" onchange="toggleUpcomingSelection(this.dataset.key, this.checked)" type="checkbox" ${selectedUpcomingKeys.has(item.key) ? 'checked' : ''}/><span>Seç</span></label>` : '<span></span>'}
                 <div class="upcoming-item-main"><b>${item.icon} ${escapeHtml(item.title)}</b><span class="sub-info">📅 ${escapeHtml(item.date)} · ${escapeHtml(dateInfo.label)}</span></div>
                 <div class="upcoming-item-side">
-                    <strong>${item.hidden ? '****** TL' : moneyText(item.amount)}</strong>
+                    <strong>${showUpcomingTotals ? moneyText(item.amount) : '****** TL'}</strong>
+                    ${item.canMarkPaid ? `<button class="btn-sm btn-success" data-id="${escapeHtml(item.sourceId)}" onclick="openPendingExpensePayment(this.dataset.id)" type="button">Ödendi İşaretle</button>` : ''}
                     <button class="btn-sm btn-warning" data-id="${escapeHtml(item.sourceId)}" data-type="${escapeHtml(item.type)}" onclick="editUpcomingItem(this.dataset.type, this.dataset.id)" type="button">Düzenle</button>
                 </div>`;
             list.appendChild(div);
@@ -3745,8 +4083,8 @@
         document.getElementById('version-badge').textContent = `v${APP_VERSION}`;
         document.getElementById('t-date').value = formatDateInput(new Date());
         initVirtualNumpad();
-        updateWorkspaceHeader('tab-transactions');
-        document.getElementById('home-nav-btn')?.classList.add('active');
+        applyWorkspaceMode('home');
+        openHome();
         loadFromCloud();
     };
 </script>

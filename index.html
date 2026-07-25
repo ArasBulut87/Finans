@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Aras Finans v2.3.0 — Kişisel Finans Yönetimi</title>
+<title>Aras Finans v3.0.1 — Firebase Senkronizasyonlu Kişisel Finans Yönetimi</title>
 <style>
         :root {
             --primary: #4f46e5;
@@ -1096,7 +1096,7 @@
         }
 
 
-        /* v2.3.0 — Tek bakiye düğmesi ve yaklaşan işlemlerden bütçeye aktarma */
+        /* v3.0.1 — Firebase Authentication, Firestore ve tek seferlik eski veri aktarımı */
         .app-shell.rail-hidden {
             grid-template-columns: 218px minmax(0, 1fr);
             grid-template-areas:
@@ -1206,7 +1206,7 @@
 
 
 
-        /* v2.3.0 — Tek global bakiye düğmesi */
+        /* v3.0.1 — Tek global bakiye düğmesi */
         .global-balance-toggle {
             display: inline-flex;
             align-items: center;
@@ -1287,9 +1287,201 @@
             .forecast-upcoming-option > strong { grid-column: 2; }
         }
 
+
+        /* v3.0.1 — Google ile giriş ve Firebase durum arayüzü */
+        body.auth-pending { overflow: hidden; }
+        body.auth-pending .app-shell { visibility: hidden; }
+        .auth-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 30000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(79,70,229,.18), transparent 38%),
+                radial-gradient(circle at bottom right, rgba(6,182,212,.15), transparent 42%),
+                #f8fafc;
+        }
+        .auth-screen.hidden { display: none; }
+        .auth-card {
+            width: min(440px, 100%);
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 22px;
+            padding: 32px;
+            box-shadow: 0 24px 70px rgba(15,23,42,.16);
+            text-align: center;
+        }
+        .auth-logo {
+            width: 68px;
+            height: 68px;
+            border-radius: 20px;
+            margin: 0 auto 18px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, var(--primary), #06b6d4);
+            color: #fff;
+            font-size: 1.45rem;
+            font-weight: 900;
+            letter-spacing: .03em;
+        }
+        .auth-card h1 { margin: 0; color: #0f172a; font-size: 1.7rem; }
+        .auth-card p { color: #64748b; line-height: 1.55; margin: 10px 0 24px; }
+        .google-login-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #0f172a;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .google-login-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+        .google-mark {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: conic-gradient(from -45deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0);
+            color: #fff;
+            font-weight: 900;
+            font-size: .85rem;
+        }
+        .auth-note { display:block; margin-top:16px; color:#94a3b8; font-size:.78rem; }
+        .firebase-user-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            padding: 4px 7px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fff;
+        }
+        .firebase-user-chip img,
+        .firebase-user-avatar-fallback {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #e0e7ff;
+            color: var(--primary);
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+            flex: 0 0 auto;
+        }
+        .firebase-user-text { min-width:0; max-width:150px; line-height:1.1; }
+        .firebase-user-text strong,
+        .firebase-user-text small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .firebase-user-text strong { font-size:.76rem; color:#0f172a; }
+        .firebase-user-text small { font-size:.67rem; color:#64748b; margin-top:2px; }
+        .signout-btn { border:none; background:#f1f5f9; color:#475569; cursor:pointer; padding:6px 8px; }
+        .signout-btn:hover { background:#fee2e2; color:#b91c1c; }
+        .migration-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 31000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+            background: rgba(15,23,42,.58);
+            backdrop-filter: blur(4px);
+        }
+        .migration-backdrop.open { display:flex; }
+        .migration-card {
+            width: min(560px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            background:#fff;
+            border-radius:18px;
+            padding:25px;
+            box-shadow:0 24px 80px rgba(15,23,42,.28);
+        }
+        .migration-card h3 { margin-bottom:8px; }
+        .migration-card p { color:#475569; line-height:1.55; }
+        .migration-user {
+            padding:10px 12px;
+            border-radius:10px;
+            background:#eef2ff;
+            color:#3730a3;
+            font-weight:700;
+            margin:12px 0;
+        }
+        .migration-options { display:grid; gap:10px; margin-top:16px; }
+        .migration-option {
+            text-align:left;
+            padding:14px;
+            border:1px solid #cbd5e1;
+            background:#fff;
+            cursor:pointer;
+        }
+        .migration-option:hover { border-color:var(--primary); background:#f8faff; }
+        .migration-option strong,.migration-option small { display:block; }
+        .migration-option small { margin-top:4px; color:#64748b; font-weight:400; line-height:1.4; }
+        .migration-warning { margin-top:14px; padding:10px; border-radius:8px; background:#fff7ed; color:#9a3412; font-size:.83rem; }
+        .migration-progress { display:none; margin-top:14px; color:var(--primary); font-weight:700; }
+        .migration-progress.visible { display:block; }
+        @media (max-width: 1100px) {
+            .firebase-user-text { display:none; }
+        }
+        @media (max-width: 760px) {
+            .sync-compact #sync-text { display:none; }
+            .sync-compact .version-badge { display:none; }
+            .firebase-user-chip { padding:3px; }
+            .signout-btn { padding:5px 6px; }
+            .auth-card { padding:25px 20px; }
+        }
+
 </style>
 </head>
-<body>
+<body class="auth-pending">
+
+<div class="auth-screen" id="auth-screen">
+    <div class="auth-card">
+        <div class="auth-logo">AF</div>
+        <h1>Aras Finans</h1>
+        <p>Finans verilerinize ulaşmak ve cihazlarınız arasında güvenli biçimde senkronize etmek için Google hesabınızla giriş yapın.</p>
+        <button class="google-login-btn" id="google-login-btn" onclick="signInWithGoogle()" type="button">
+            <span class="google-mark">G</span>
+            Google ile giriş yap
+        </button>
+        <small class="auth-note" id="auth-message">Her kullanıcı yalnızca kendi finans verilerini görür.</small>
+    </div>
+</div>
+
+<div class="migration-backdrop" id="migration-backdrop">
+    <div class="migration-card">
+        <h3>📦 Eski verilerini Firebase'e aktar</h3>
+        <p>Bu Google hesabında henüz Aras Finans verisi bulunmuyor. Eski Google Sheets verilerini veya bu cihazdaki yerel yedeği yalnızca bir kez aktarabilirsin.</p>
+        <div class="migration-user" id="migration-user">Google hesabı</div>
+        <div class="migration-options">
+            <button class="migration-option" id="migrate-sheet-btn" onclick="migrateFromLegacyGoogleSheet()" type="button">
+                <strong>☁️ Google Sheets'teki mevcut verilerimi aktar</strong>
+                <small>Eski Apps Script bağlantısından verileri alır ve yalnızca giriş yaptığın Firebase hesabına kaydeder.</small>
+            </button>
+            <button class="migration-option" id="migrate-local-btn" onclick="migrateFromLegacyLocalBackup()" type="button">
+                <strong>💾 Bu cihazdaki yerel yedeği aktar</strong>
+                <small>Tarayıcıda kayıtlı son Aras Finans verilerini kullanır.</small>
+            </button>
+            <button class="migration-option" onclick="startWithEmptyFinanceAccount()" type="button">
+                <strong>✨ Boş hesapla başla</strong>
+                <small>Bu kullanıcı için tamamen boş ve bağımsız bir finans alanı oluşturur.</small>
+            </button>
+        </div>
+        <div class="migration-warning">Önce eski verilerin sahibi olan doğru Google hesabıyla giriş yaptığından emin ol. Aktarım tamamlandıktan sonra başka kullanıcılar boş verilerle başlar.</div>
+        <div class="migration-progress" id="migration-progress">Aktarım hazırlanıyor...</div>
+    </div>
+</div>
+
 <div class="app-shell"><header class="app-topbar">
 <div class="topbar-left">
 <button aria-label="Menüyü aç" class="top-icon-button mobile-only" onclick="toggleSidebar()" type="button">☰</button>
@@ -1307,7 +1499,7 @@
 <button class="top-action" onclick="quickOpenTab('tab-accounts','acc-name')" type="button">▣ Yeni Hesap</button>
 <button class="top-action global-balance-toggle" id="global-balance-toggle" onclick="toggleOverviewVisibility(event)" title="Ekrandaki tüm bakiyeleri göster veya gizle" type="button"><span id="global-balance-icon">👁️</span><span class="global-balance-label" id="global-balance-label">Bakiyeleri Göster</span></button>
 <button aria-label="Hesap listesini aç" class="top-icon-button mobile-only" onclick="toggleAccountRail()" type="button">₺</button>
-<div class="sync-compact"><div id="sync-text">🔄 Google Sheets Bulut Senkronizasyonu Başlatılıyor...</div><span class="version-badge" id="version-badge">Aras Finans v2.3.0</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Buluttan güncelle">↻</button></div>
+<div class="sync-compact"><div id="sync-text">🔐 Google hesabı bekleniyor...</div><span class="version-badge" id="version-badge">Aras Finans v3.0.1</span><button class="top-icon-button sync-button" onclick="loadFromCloud()" style="margin:0; padding:6px 12px;" title="Firebase'den güncelle">↻</button><div class="firebase-user-chip" id="firebase-user-chip" style="display:none;"><img id="firebase-user-photo" alt="" style="display:none;"/><span class="firebase-user-avatar-fallback" id="firebase-user-fallback">U</span><span class="firebase-user-text"><strong id="firebase-user-name">Kullanıcı</strong><small id="firebase-user-email"></small></span><button class="signout-btn" onclick="signOutUser()" title="Çıkış yap" type="button">Çıkış</button></div></div>
 </div>
 </header><aside class="app-sidebar" id="app-sidebar">
 <div class="sidebar-budget-card">
@@ -1324,7 +1516,7 @@
 </nav>
 <div class="sidebar-bottom">
 <button class="side-link utility-link" onclick="scrollToUpcoming()" type="button"><span>⌛</span> Yaklaşan İşlemler <b id="upcoming-count-badge">0</b></button>
-<div class="sidebar-version">Yerel yedek + Google Sheets</div>
+<div class="sidebar-version">Firebase · Kullanıcıya özel bulut</div>
 </div>
 </aside><aside class="account-rail" id="account-rail">
 <div class="account-rail-head">
@@ -1584,6 +1776,9 @@
 <div class="flex-group">
 <input id="d-start-date" title="Başlangıç Tarihi" type="date"/>
 <input id="d-due-date" title="Son Ödeme Tarihi" type="date"/>
+<select id="d-account" required="" title="Borç ödemesi veya alacak tahsilatı için varsayılan hesap">
+<option value="">Ödeme / Tahsilat Hesabı Seçin...</option>
+</select>
 </div>
 <textarea id="d-notes" placeholder="Not / Açıklama (İsteğe Bağlı)"></textarea>
 <div class="flex-group">
@@ -1622,7 +1817,7 @@
 </div>
 <div class="upcoming-list" id="upcoming-list"></div>
 </div>
-<footer class="app-footer">Aras Finans · Verileriniz tarayıcıda yerel olarak yedeklenir ve yapılandırılmışsa Google Sheets ile senkronize edilir.</footer>
+<footer class="app-footer">Aras Finans · Verileriniz Google hesabınıza özel olarak Firebase Cloud Firestore ile senkronize edilir ve bu cihazda ayrıca yedeklenir.</footer>
 </main><button aria-label="Panelleri kapat" class="mobile-overlay" id="mobile-overlay" onclick="closeMobilePanels()" type="button"></button></div>
 <!-- ORTAK SANAL NÜMERİK KLAVYE -->
 <div id="virtual-numpad">
@@ -1785,10 +1980,39 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
 </form>
 </div>
 </div>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
-    const APP_VERSION = "2.3.0";
-    const LOCAL_STORAGE_KEY = "arasFinansData_v1";
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
+    const APP_VERSION = "3.0.1";
+    const LEGACY_LOCAL_STORAGE_KEY = "arasFinansData_v1";
+    const USER_LOCAL_STORAGE_PREFIX = "arasFinansFirebase_";
+    const LEGACY_CLAIM_UID_KEY = "arasFinansLegacyClaimedUid";
+    const LEGACY_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmF6K47KuIjeNyP7JbeWM7gLF-IQ5G62qsT93ciYuHw5L_NNEpzoO-82q7_pVHwGcY/exec";
+    const FINANCE_COLLECTION = "financeUsers";
+    const MIGRATION_META_COLLECTION = "appMeta";
+    const MIGRATION_META_DOC = "arasFinanceMigration";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBfLM7Gl4zE6rPt01Wqu8eBPrNyxVX5sMs",
+        authDomain: "aras-finans.firebaseapp.com",
+        projectId: "aras-finans",
+        storageBucket: "aras-finans.firebasestorage.app",
+        messagingSenderId: "170345813452",
+        appId: "1:170345813452:web:3e5163b45075f7b843f969"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const firebaseAuth = firebase.auth();
+    const firebaseDb = firebase.firestore();
+    const googleProvider = new firebase.auth.GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: "select_account" });
+
+    let currentUser = null;
+    let cloudListenerUnsubscribe = null;
+    let migrationDecisionPending = false;
+    let applyingCloudSnapshot = false;
+    let lastCloudSavePromise = Promise.resolve();
 
     let defaultCategories = {
         expense: [
@@ -1900,22 +2124,59 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         return data.debtTypes.find(t => t.id === typeId) || data.debtTypes.find(t => t.name === legacyName);
     }
 
+    function createEmptyData() {
+        return {
+            accounts: [],
+            transactions: [],
+            debts: [],
+            invoices: [],
+            forecasts: [],
+            categories: {
+                expense: defaultCategories.expense.map(category => ({ ...category, subcategories: [...(category.subcategories || [])] })),
+                income: defaultCategories.income.map(category => ({ ...category, subcategories: [...(category.subcategories || [])] }))
+            },
+            debtTypes: defaultDebtTypes.map(type => ({ ...type }))
+        };
+    }
+
+    function hasMeaningfulFinanceData(candidate) {
+        if (!candidate || typeof candidate !== 'object') return false;
+        return ['accounts', 'transactions', 'debts', 'invoices', 'forecasts']
+            .some(key => Array.isArray(candidate[key]) && candidate[key].length > 0);
+    }
+
+    function getUserLocalStorageKey(uid = currentUser?.uid) {
+        return uid ? `${USER_LOCAL_STORAGE_PREFIX}${uid}` : LEGACY_LOCAL_STORAGE_KEY;
+    }
+
     function saveLocalBackup() {
+        if (!currentUser) return false;
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+            localStorage.setItem(getUserLocalStorageKey(), JSON.stringify(data));
             return true;
         } catch (error) {
-            console.warn('Yerel yedek kaydedilemedi:', error);
+            console.warn('Kullanıcıya özel yerel yedek kaydedilemedi:', error);
             return false;
         }
     }
 
     function loadLocalBackup() {
+        if (!currentUser) return null;
         try {
-            const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const raw = localStorage.getItem(getUserLocalStorageKey());
             return raw ? JSON.parse(raw) : null;
         } catch (error) {
-            console.warn('Yerel yedek okunamadı:', error);
+            console.warn('Kullanıcıya özel yerel yedek okunamadı:', error);
+            return null;
+        }
+    }
+
+    function loadLegacyLocalBackup() {
+        try {
+            const raw = localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            console.warn('Eski yerel yedek okunamadı:', error);
             return null;
         }
     }
@@ -1996,6 +2257,8 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
             debt.amount = Number(debt.amount) || 0;
             debt.status = debt.status || (debt.paid ? 'closed' : 'active');
             debt.payments = Array.isArray(debt.payments) ? debt.payments : [];
+            if (!debt.accountId && debt.account) debt.accountId = data.accounts.find(a => a.name === debt.account)?.id || '';
+            debt.account = debt.accountId ? getAccountName(debt.accountId, debt.account) : (debt.account || '');
             if (!debt.debtTypeId && debt.debtTypeName) debt.debtTypeId = data.debtTypes.find(t => t.name === debt.debtTypeName)?.id || '';
             const dt = getDebtTypeByRef(debt.debtTypeId, debt.debtTypeName);
             if (dt) {
@@ -2134,73 +2397,425 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         }
     }
 
-    // --- BULUT VE YEREL SENKRONİZASYON ---
-    async function loadFromCloud() {
-        const syncText = document.getElementById('sync-text');
-        const localData = loadLocalBackup();
+    // --- FIREBASE AUTHENTICATION, FIRESTORE VE TEK SEFERLİK ESKİ VERİ AKTARIMI ---
+    function financeDocRef(uid = currentUser?.uid) {
+        if (!uid) throw new Error('Oturum açmış kullanıcı bulunamadı.');
+        return firebaseDb.collection(FINANCE_COLLECTION).doc(uid);
+    }
 
+    function migrationMetaRef() {
+        return firebaseDb.collection(MIGRATION_META_COLLECTION).doc(MIGRATION_META_DOC);
+    }
+
+    function setAuthMessage(message, isError = false) {
+        const el = document.getElementById('auth-message');
+        if (!el) return;
+        el.textContent = message;
+        el.style.color = isError ? '#b91c1c' : '#94a3b8';
+    }
+
+    function showAuthScreen(show) {
+        const screen = document.getElementById('auth-screen');
+        if (screen) screen.classList.toggle('hidden', !show);
+        document.body.classList.toggle('auth-pending', show);
+    }
+
+    function renderFirebaseUser(user) {
+        const chip = document.getElementById('firebase-user-chip');
+        const photo = document.getElementById('firebase-user-photo');
+        const fallback = document.getElementById('firebase-user-fallback');
+        const name = document.getElementById('firebase-user-name');
+        const email = document.getElementById('firebase-user-email');
+        if (!chip) return;
+
+        if (!user) {
+            chip.style.display = 'none';
+            return;
+        }
+
+        chip.style.display = 'flex';
+        name.textContent = user.displayName || 'Google Kullanıcısı';
+        email.textContent = user.email || '';
+        fallback.textContent = (user.displayName || user.email || 'U').trim().charAt(0).toLocaleUpperCase('tr-TR');
+        if (user.photoURL) {
+            photo.src = user.photoURL;
+            photo.style.display = 'block';
+            fallback.style.display = 'none';
+        } else {
+            photo.removeAttribute('src');
+            photo.style.display = 'none';
+            fallback.style.display = 'grid';
+        }
+    }
+
+    async function signInWithGoogle() {
+        const button = document.getElementById('google-login-btn');
+        if (button) button.disabled = true;
+        setAuthMessage('Google giriş penceresi açılıyor...');
+        try {
+            await firebaseAuth.signInWithPopup(googleProvider);
+        } catch (error) {
+            console.error('Google giriş hatası:', error);
+            if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(error.code)) {
+                setAuthMessage('Açılır pencere kullanılamadı; Google giriş sayfasına yönlendiriliyorsunuz...');
+                await firebaseAuth.signInWithRedirect(googleProvider);
+                return;
+            }
+            if (error.code !== 'auth/popup-closed-by-user') {
+                setAuthMessage(`Giriş yapılamadı: ${error.message || error.code}`, true);
+            } else {
+                setAuthMessage('Giriş penceresi kapatıldı. Tekrar deneyebilirsin.', true);
+            }
+        } finally {
+            if (button) button.disabled = false;
+        }
+    }
+
+    async function signOutUser() {
+        if (!confirm('Google hesabından çıkış yapmak istediğinize emin misiniz?')) return;
+        try {
+            await firebaseAuth.signOut();
+        } catch (error) {
+            alert(`Çıkış yapılamadı: ${error.message || error}`);
+        }
+    }
+
+    function setMigrationProgress(message = '', visible = true) {
+        const el = document.getElementById('migration-progress');
+        if (!el) return;
+        el.textContent = message;
+        el.classList.toggle('visible', visible);
+    }
+
+    function setMigrationButtonsDisabled(disabled) {
+        document.querySelectorAll('#migration-backdrop button').forEach(button => button.disabled = disabled);
+    }
+
+    function openMigrationDialog({ allowLocal = false, allowSheet = true } = {}) {
+        migrationDecisionPending = true;
+        const backdrop = document.getElementById('migration-backdrop');
+        const userLabel = document.getElementById('migration-user');
+        const localButton = document.getElementById('migrate-local-btn');
+        const sheetButton = document.getElementById('migrate-sheet-btn');
+        if (userLabel) userLabel.textContent = `${currentUser?.displayName || 'Google Kullanıcısı'} · ${currentUser?.email || ''}`;
+        if (localButton) {
+            localButton.disabled = !allowLocal;
+            localButton.style.opacity = allowLocal ? '1' : '.45';
+            localButton.title = allowLocal ? '' : 'Bu cihazda eski Aras Finans yerel yedeği bulunamadı.';
+        }
+        if (sheetButton) sheetButton.disabled = !allowSheet;
+        setMigrationProgress('', false);
+        if (backdrop) backdrop.classList.add('open');
+        showAuthScreen(false);
+    }
+
+    function closeMigrationDialog() {
+        const backdrop = document.getElementById('migration-backdrop');
+        if (backdrop) backdrop.classList.remove('open');
+        migrationDecisionPending = false;
+        setMigrationButtonsDisabled(false);
+        setMigrationProgress('', false);
+    }
+
+    async function claimLegacyMigrationOwnership() {
+        if (!currentUser) throw new Error('Aktarım için önce Google hesabıyla giriş yapılmalıdır.');
+        const ref = migrationMetaRef();
+        await firebaseDb.runTransaction(async transaction => {
+            const snapshot = await transaction.get(ref);
+            if (snapshot.exists) {
+                const ownerUid = snapshot.data()?.ownerUid || '';
+                if (ownerUid && ownerUid !== currentUser.uid) {
+                    throw new Error('Eski Google Sheets verileri daha önce başka bir kullanıcı hesabına aktarılmış.');
+                }
+                transaction.set(ref, {
+                    ownerUid: currentUser.uid,
+                    ownerEmail: currentUser.email || '',
+                    ownerName: currentUser.displayName || '',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                return;
+            }
+            transaction.set(ref, {
+                ownerUid: currentUser.uid,
+                ownerEmail: currentUser.email || '',
+                ownerName: currentUser.displayName || '',
+                completed: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+    }
+
+    async function writeInitialFinanceDocument(initialData, migrationSource = 'empty') {
+        data = initialData && typeof initialData === 'object' ? initialData : createEmptyData();
+        ensureDataIntegrity();
+        hideAllFinancialValues();
+        saveLocalBackup();
+        await financeDocRef().set({
+            data,
+            appVersion: APP_VERSION,
+            ownerEmail: currentUser?.email || '',
+            migration: {
+                source: migrationSource,
+                completed: migrationSource !== 'empty',
+                completedAt: migrationSource !== 'empty' ? firebase.firestore.FieldValue.serverTimestamp() : null
+            },
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        updateUI(false);
+    }
+
+    async function finalizeLegacyMigration(importedData, source) {
+        setMigrationProgress('Veriler düzenleniyor ve Firebase hesabınıza kaydediliyor...');
+        await writeInitialFinanceDocument(importedData, source);
+        localStorage.setItem(LEGACY_CLAIM_UID_KEY, currentUser.uid);
+        await migrationMetaRef().set({
+            ownerUid: currentUser.uid,
+            ownerEmail: currentUser.email || '',
+            ownerName: currentUser.displayName || '',
+            completed: true,
+            source,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+        closeMigrationDialog();
+        startCloudListener();
+        document.getElementById('sync-text').textContent = '✅ Eski veriler Firebase hesabına aktarıldı.';
+        alert('Eski finans verileriniz başarıyla Firebase hesabınıza aktarıldı. Google Sheets artık senkronizasyon için kullanılmayacak.');
+    }
+
+    async function migrateFromLegacyGoogleSheet() {
+        if (!currentUser) return;
+        setMigrationButtonsDisabled(true);
+        setMigrationProgress('Eski Google Sheets verileri alınıyor...');
+        try {
+            await claimLegacyMigrationOwnership();
+            const response = await fetch(LEGACY_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'load' })
+            });
+            if (!response.ok) throw new Error(`Eski veri bağlantısı HTTP ${response.status} hatası verdi.`);
+            const result = await response.json();
+            if (result.status !== 'success' || !result.payload || typeof result.payload !== 'object') {
+                throw new Error(result.message || 'Google Sheets üzerinden geçerli veri alınamadı.');
+            }
+            await finalizeLegacyMigration(result.payload, 'google-sheets');
+        } catch (error) {
+            console.error('Google Sheets aktarım hatası:', error);
+            setMigrationProgress(`❌ Aktarım başarısız: ${error.message || error}`);
+            setMigrationButtonsDisabled(false);
+        }
+    }
+
+    async function migrateFromLegacyLocalBackup() {
+        if (!currentUser) return;
+        const legacyData = loadLegacyLocalBackup();
+        if (!hasMeaningfulFinanceData(legacyData)) {
+            alert('Bu cihazda aktarılabilecek eski Aras Finans verisi bulunamadı.');
+            return;
+        }
+        setMigrationButtonsDisabled(true);
+        setMigrationProgress('Bu cihazdaki eski yerel yedek Firebase hesabına aktarılıyor...');
+        try {
+            await claimLegacyMigrationOwnership();
+            await finalizeLegacyMigration(legacyData, 'local-backup');
+        } catch (error) {
+            console.error('Yerel yedek aktarım hatası:', error);
+            setMigrationProgress(`❌ Aktarım başarısız: ${error.message || error}`);
+            setMigrationButtonsDisabled(false);
+        }
+    }
+
+    async function startWithEmptyFinanceAccount() {
+        if (!currentUser) return;
+        const legacyData = loadLegacyLocalBackup();
+        if (hasMeaningfulFinanceData(legacyData)) {
+            const proceed = confirm('Bu cihazda eski finans verileri bulundu. Boş hesapla başlarsanız bu Google hesabına eski veriler aktarılmayacak. Devam edilsin mi?');
+            if (!proceed) return;
+        }
+        setMigrationButtonsDisabled(true);
+        setMigrationProgress('Boş kullanıcı alanı oluşturuluyor...');
+        try {
+            await writeInitialFinanceDocument(createEmptyData(), 'empty');
+            closeMigrationDialog();
+            startCloudListener();
+            document.getElementById('sync-text').textContent = '☁️ Boş Firebase finans alanı oluşturuldu.';
+        } catch (error) {
+            console.error('Boş hesap oluşturma hatası:', error);
+            setMigrationProgress(`❌ Hesap oluşturulamadı: ${error.message || error}`);
+            setMigrationButtonsDisabled(false);
+        }
+    }
+
+    function applyCloudData(cloudData, statusMessage = '☁️ Firebase verileri güncellendi.') {
+        data = cloudData && typeof cloudData === 'object' ? cloudData : createEmptyData();
+        ensureDataIntegrity();
+        hideAllFinancialValues();
+        saveLocalBackup();
+        applyingCloudSnapshot = true;
+        try {
+            updateUI(false);
+        } finally {
+            applyingCloudSnapshot = false;
+        }
+        document.getElementById('sync-text').textContent = statusMessage;
+    }
+
+    function startCloudListener() {
+        if (!currentUser) return;
+        if (cloudListenerUnsubscribe) cloudListenerUnsubscribe();
+        cloudListenerUnsubscribe = financeDocRef().onSnapshot(snapshot => {
+            if (!snapshot.exists || migrationDecisionPending) return;
+            const cloudData = snapshot.data()?.data;
+            if (!cloudData) return;
+            applyCloudData(cloudData, snapshot.metadata.hasPendingWrites
+                ? '⏳ Değişiklikler Firebase’e gönderiliyor...'
+                : '☁️ Firebase ile senkronize.');
+        }, error => {
+            console.error('Firestore canlı dinleme hatası:', error);
+            document.getElementById('sync-text').textContent = '⚠️ Canlı senkronizasyon kesildi; yerel yedek kullanılabilir.';
+        });
+    }
+
+    async function initializeFinanceForUser(user) {
+        const syncText = document.getElementById('sync-text');
+        syncText.textContent = '⏳ Firebase verileri hazırlanıyor...';
+        const localData = loadLocalBackup();
         if (localData) {
             data = localData;
             ensureDataIntegrity();
             hideAllFinancialValues();
             updateUI(false);
-            syncText.textContent = '📦 Yerel yedek açıldı, bulut kontrol ediliyor...';
-        } else {
-            syncText.textContent = '⏳ Veriler buluttan indiriliyor...';
+            syncText.textContent = '📦 Kullanıcıya özel yerel yedek açıldı; Firebase kontrol ediliyor...';
         }
 
         try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'load' })
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const [financeSnapshot, migrationSnapshot] = await Promise.all([
+                financeDocRef(user.uid).get(),
+                migrationMetaRef().get()
+            ]);
 
-            const result = await response.json();
-            if (result.status === 'success' && result.payload) {
-                data = result.payload;
-                ensureDataIntegrity();
-                hideAllFinancialValues();
-                saveLocalBackup();
-                updateUI(false);
-                syncText.textContent = '✅ Bulut verileri senkronize edildi ve yerel yedek güncellendi.';
+            if (financeSnapshot.exists && financeSnapshot.data()?.data) {
+                applyCloudData(financeSnapshot.data().data, '✅ Firebase verileri yüklendi.');
+                showAuthScreen(false);
+                startCloudListener();
                 return;
             }
-            throw new Error(result.message || 'Buluttan geçerli veri alınamadı.');
+
+            if (hasMeaningfulFinanceData(localData)) {
+                await writeInitialFinanceDocument(localData, 'user-local-recovery');
+                showAuthScreen(false);
+                startCloudListener();
+                syncText.textContent = '✅ Bu kullanıcıya ait yerel yedek Firebase’e kaydedildi.';
+                return;
+            }
+
+            const migrationMeta = migrationSnapshot.exists ? migrationSnapshot.data() : null;
+            const migrationOwnerUid = migrationMeta?.ownerUid || '';
+            const claimedOnThisDevice = localStorage.getItem(LEGACY_CLAIM_UID_KEY) || '';
+            const legacyData = loadLegacyLocalBackup();
+            const hasLegacyLocal = hasMeaningfulFinanceData(legacyData);
+            const isMigrationOwner = migrationOwnerUid === user.uid;
+            const canClaimMigration = !migrationOwnerUid && (!claimedOnThisDevice || claimedOnThisDevice === user.uid);
+
+            if (isMigrationOwner || canClaimMigration) {
+                openMigrationDialog({ allowLocal: hasLegacyLocal, allowSheet: true });
+                syncText.textContent = '📦 Eski veriler için aktarım seçimi bekleniyor.';
+                return;
+            }
+
+            await writeInitialFinanceDocument(createEmptyData(), 'empty');
+            showAuthScreen(false);
+            startCloudListener();
+            syncText.textContent = '☁️ Bu kullanıcı için boş finans alanı oluşturuldu.';
         } catch (error) {
-            console.warn('Bulut yükleme hatası:', error);
+            console.error('Firebase kullanıcı verisi başlatma hatası:', error);
             if (localData) {
-                syncText.textContent = '⚠️ Buluta ulaşılamadı; yerel yedek kullanılıyor.';
+                showAuthScreen(false);
+                syncText.textContent = '⚠️ Firebase’e ulaşılamadı; bu kullanıcıya ait yerel yedek açıldı.';
             } else {
-                ensureDataIntegrity();
-                hideAllFinancialValues();
-                updateUI(false);
-                syncText.textContent = '❌ Buluta ulaşılamadı ve yerel yedek bulunamadı.';
+                setAuthMessage(`Firebase verileri açılamadı: ${error.message || error}`, true);
+                showAuthScreen(true);
+            }
+        }
+    }
+
+    async function handleAuthStateChanged(user) {
+        if (cloudListenerUnsubscribe) {
+            cloudListenerUnsubscribe();
+            cloudListenerUnsubscribe = null;
+        }
+        currentUser = user || null;
+        renderFirebaseUser(currentUser);
+
+        if (!currentUser) {
+            migrationDecisionPending = false;
+            document.getElementById('migration-backdrop')?.classList.remove('open');
+            data = createEmptyData();
+            ensureDataIntegrity();
+            hideAllFinancialValues();
+            updateUI(false);
+            document.getElementById('sync-text').textContent = '🔐 Google hesabı bekleniyor...';
+            setAuthMessage('Her kullanıcı yalnızca kendi finans verilerini görür.');
+            showAuthScreen(true);
+            return;
+        }
+
+        showAuthScreen(true);
+        setAuthMessage(`${currentUser.email || 'Google hesabı'} için veriler hazırlanıyor...`);
+        await initializeFinanceForUser(currentUser);
+    }
+
+    async function loadFromCloud() {
+        if (!currentUser) {
+            showAuthScreen(true);
+            return;
+        }
+        const syncText = document.getElementById('sync-text');
+        syncText.textContent = '⏳ Firebase’den güncel veriler alınıyor...';
+        try {
+            const snapshot = await financeDocRef().get({ source: 'server' });
+            if (!snapshot.exists || !snapshot.data()?.data) throw new Error('Bu kullanıcı için Firebase verisi bulunamadı.');
+            applyCloudData(snapshot.data().data, '✅ Firebase verileri manuel olarak güncellendi.');
+        } catch (error) {
+            console.warn('Firebase manuel yükleme hatası:', error);
+            const localData = loadLocalBackup();
+            if (localData) {
+                applyCloudData(localData, '⚠️ Firebase’e ulaşılamadı; kullanıcıya özel yerel yedek açıldı.');
+            } else {
+                syncText.textContent = `❌ Veriler yüklenemedi: ${error.message || error}`;
             }
         }
     }
 
     async function saveToCloud() {
+        if (!currentUser || applyingCloudSnapshot || migrationDecisionPending) return;
         const syncText = document.getElementById('sync-text');
         const localSaved = saveLocalBackup();
-        syncText.textContent = localSaved ? '⏳ Yerel yedek alındı, buluta kaydediliyor...' : '⏳ Buluta kaydediliyor...';
+        const snapshotData = JSON.parse(JSON.stringify(data));
+        syncText.textContent = localSaved
+            ? '⏳ Yerel yedek alındı; Firebase’e kaydediliyor...'
+            : '⏳ Firebase’e kaydediliyor...';
 
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'save', payload: data })
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
-            if (result.status !== 'success') throw new Error(result.message || 'Bulut kaydı başarısız.');
-            syncText.textContent = localSaved ? '☁️ Buluta ve yerel yedeğe kaydedildi.' : '☁️ Buluta kaydedildi.';
-        } catch (error) {
-            console.warn('Bulut kayıt hatası:', error);
+        lastCloudSavePromise = lastCloudSavePromise.catch(() => undefined).then(async () => {
+            await financeDocRef().set({
+                data: snapshotData,
+                appVersion: APP_VERSION,
+                ownerEmail: currentUser.email || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
             syncText.textContent = localSaved
-                ? '⚠️ Bulut kaydı başarısız; değişiklikler yerel yedekte güvende.'
-                : '❌ Değişiklikler kaydedilemedi.';
-        }
+                ? '☁️ Firebase ve kullanıcıya özel yerel yedek güncellendi.'
+                : '☁️ Firebase güncellendi.';
+        }).catch(error => {
+            console.error('Firebase kayıt hatası:', error);
+            syncText.textContent = localSaved
+                ? '⚠️ Firebase kaydı başarısız; değişiklikler bu kullanıcıya ait yerel yedekte güvende.'
+                : `❌ Değişiklikler kaydedilemedi: ${error.message || error}`;
+            return false;
+        });
+        return lastCloudSavePromise;
     }
 
     // --- ARAYÜZ VE GİZLİLİK ---
@@ -2565,9 +3180,12 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                 if (tx.accountId === account.id || (!tx.accountId && tx.account === oldName)) tx.account = name;
                 if (tx.targetAccountId === account.id || (!tx.targetAccountId && tx.targetAccount === oldName)) tx.targetAccount = name;
             });
-            data.debts.forEach(debt => (debt.payments || []).forEach(p => {
-                if (p.accountId === account.id || (!p.accountId && p.account === oldName)) p.account = name;
-            }));
+            data.debts.forEach(debt => {
+                if (debt.accountId === account.id || (!debt.accountId && debt.account === oldName)) debt.account = name;
+                (debt.payments || []).forEach(p => {
+                    if (p.accountId === account.id || (!p.accountId && p.account === oldName)) p.account = name;
+                });
+            });
         } else {
             data.accounts.push({ id: generateId('acc'), name, balance, kmh, hidden: true });
         }
@@ -2598,9 +3216,10 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         const account = data.accounts[index];
         const usedInTransactions = data.transactions.some(tx => tx.accountId === account.id || tx.targetAccountId === account.id || tx.account === account.name || tx.targetAccount === account.name);
         const usedInPayments = data.debts.some(debt => (debt.payments || []).some(p => p.accountId === account.id || p.account === account.name));
+        const usedInDebtRecords = data.debts.some(debt => debt.accountId === account.id || debt.account === account.name);
         const usedInInvoices = data.invoices.some(inv => inv.accountId === account.id || inv.account === account.name);
 
-        if (usedInTransactions || usedInPayments || usedInInvoices) {
+        if (usedInTransactions || usedInPayments || usedInDebtRecords || usedInInvoices) {
             alert('Bu hesap işlem veya ödeme geçmişinde kullanıldığı için silinemez. İsterseniz adını düzenleyebilirsiniz.');
             return;
         }
@@ -2737,11 +3356,13 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         const filterAccSelect = document.getElementById('f-filter-account');
         const pmAccountSelect = document.getElementById('pm-account');
         const debtTypeSelect = document.getElementById('d-debt-type');
+        const debtAccountSelect = document.getElementById('d-account');
         const invoiceAccountSelect = document.getElementById('i-account');
         const pendingPaymentAccountSelect = document.getElementById('pending-payment-account');
 
         const previousFilter = filterAccSelect.value;
         const previousPaymentAccount = pmAccountSelect.value;
+        const previousDebtAccount = debtAccountSelect ? debtAccountSelect.value : '';
         const previousInvoiceAccount = invoiceAccountSelect ? invoiceAccountSelect.value : '';
         const previousPendingPaymentAccount = pendingPaymentAccountSelect ? pendingPaymentAccountSelect.value : '';
         const accountOptions = data.accounts.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)}</option>`).join('');
@@ -2750,11 +3371,13 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         targetAccSelect.innerHTML = '<option value="">Alıcı Hesap Seçin...</option>' + accountOptions;
         filterAccSelect.innerHTML = '<option value="">Tüm Hesaplar</option>' + accountOptions;
         pmAccountSelect.innerHTML = '<option value="">Hesap seçmeden yalnızca ödeme kaydı oluştur</option>' + accountOptions;
+        if (debtAccountSelect) debtAccountSelect.innerHTML = '<option value="">Ödeme / Tahsilat Hesabı Seçin...</option>' + accountOptions;
         if (invoiceAccountSelect) invoiceAccountSelect.innerHTML = '<option value="">Ödeme Hesabı Seçin...</option>' + accountOptions;
         if (pendingPaymentAccountSelect) pendingPaymentAccountSelect.innerHTML = '<option value="">Ödeme hesabı seçiniz...</option>' + accountOptions;
 
         if ([...filterAccSelect.options].some(o => o.value === previousFilter)) filterAccSelect.value = previousFilter;
         if ([...pmAccountSelect.options].some(o => o.value === previousPaymentAccount)) pmAccountSelect.value = previousPaymentAccount;
+        if (debtAccountSelect && [...debtAccountSelect.options].some(o => o.value === previousDebtAccount)) debtAccountSelect.value = previousDebtAccount;
         if (invoiceAccountSelect && [...invoiceAccountSelect.options].some(o => o.value === previousInvoiceAccount)) invoiceAccountSelect.value = previousInvoiceAccount;
         if (pendingPaymentAccountSelect && [...pendingPaymentAccountSelect.options].some(o => o.value === previousPendingPaymentAccount)) pendingPaymentAccountSelect.value = previousPendingPaymentAccount;
 
@@ -3400,9 +4023,14 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         const status = document.getElementById('d-status').value;
         const startDate = document.getElementById('d-start-date').value;
         const dueDate = document.getElementById('d-due-date').value;
+        const accountId = document.getElementById('d-account').value;
+        const account = getAccountByRef(accountId);
         const notes = document.getElementById('d-notes').value.trim();
 
-        if (!dt || !person || amount <= 0) return;
+        if (!dt || !person || amount <= 0 || !account) {
+            alert('Borç/alacak kaydı için geçerli bir hesap seçiniz.');
+            return;
+        }
         const old = editIdx !== '' ? data.debts[Number(editIdx)] : null;
         const paidSum = (old?.payments || []).reduce((s, p) => s + p.amount, 0);
         if (amount < paidSum) {
@@ -3421,6 +4049,8 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
             status,
             startDate,
             dueDate,
+            accountId: account.id,
+            account: account.name,
             notes,
             payments: old?.payments || [],
             hidden: true
@@ -3444,6 +4074,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         document.getElementById('d-status').value = d.status || 'active';
         document.getElementById('d-start-date').value = d.startDate || '';
         document.getElementById('d-due-date').value = d.dueDate || '';
+        document.getElementById('d-account').value = d.accountId || getAccountByRef('', d.account)?.id || '';
         document.getElementById('d-notes').value = d.notes || '';
         document.getElementById('d-submit-btn').innerText = 'Borç Kaydını Güncelle';
         document.getElementById('d-cancel-btn').style.display = 'inline-block';
@@ -3513,7 +4144,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
                     </span>
                 </div>
                 <div class="sub-info">
-                    📅 Başlangıç: ${escapeHtml(d.startDate || '-')} | Son Ödeme: ${escapeHtml(d.dueDate || '-')} | Durum: <b>${d.status === 'closed' ? 'Kapatıldı' : d.status === 'cancelled' ? 'İptal Edildi' : 'Devam Ediyor'}</b>
+                    📅 Başlangıç: ${escapeHtml(d.startDate || '-')} | Son Ödeme: ${escapeHtml(d.dueDate || '-')} | 🏦 Hesap: ${escapeHtml(getAccountName(d.accountId, d.account))} | Durum: <b>${d.status === 'closed' ? 'Kapatıldı' : d.status === 'cancelled' ? 'İptal Edildi' : 'Devam Ediyor'}</b>
                 </div>
                 ${d.notes ? `<div style="font-size:0.85rem; color:#475569; background:#f8fafc; padding:6px; border-radius:4px; margin-top:2px;">📝 ${escapeHtml(d.notes)}</div>` : ''}
                 <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${percent}%;"></div></div>
@@ -3547,7 +4178,7 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
         document.getElementById('pm-amount').value = remaining > 0 ? remaining : '';
         document.getElementById('pm-date').value = formatDateInput(new Date());
         document.getElementById('pm-note').value = '';
-        document.getElementById('pm-account').value = '';
+        document.getElementById('pm-account').value = d.accountId || getAccountByRef('', d.account)?.id || '';
         document.getElementById('pm-update-balance').checked = true;
 
         renderPaymentHistoryTable(d);
@@ -4251,13 +4882,24 @@ Hesap seçmeden öde; herhangi bir hesap bakiyesini değiştirme
     }
 
     // Başlangıç Yüklemesi
-    window.onload = () => {
+    window.onload = async () => {
         document.getElementById('version-badge').textContent = `v${APP_VERSION}`;
         document.getElementById('t-date').value = formatDateInput(new Date());
+        data = createEmptyData();
+        ensureDataIntegrity();
+        hideAllFinancialValues();
         initVirtualNumpad();
         applyWorkspaceMode('home');
         openHome();
-        loadFromCloud();
+        updateUI(false);
+
+        try {
+            await firebaseAuth.getRedirectResult();
+        } catch (error) {
+            console.error('Google yönlendirme girişi hatası:', error);
+            setAuthMessage(`Google girişi tamamlanamadı: ${error.message || error}`, true);
+        }
+        firebaseAuth.onAuthStateChanged(handleAuthStateChanged);
     };
 </script>
 </body>
